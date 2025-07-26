@@ -167,6 +167,19 @@ Preferred communication style: Simple, everyday language.
 - ✅ Sistema remove todas as mensagens de uma conexão específica
 - ✅ Interface atualiza automaticamente após limpeza
 - ✅ Toast de confirmação mostra quantas mensagens foram removidas
+- 🔄 CONVERSA CONTÍNUA ANALISADA (26/07/2025 17:23)
+- ✅ Agentes respondem perfeitamente a mensagens humanas
+- ✅ Sistema detecta e evita loops infinitos entre agentes IA
+- ⚠️ Agentes só respondem a mensagens marcadas como humanas (isFromAgent: false)
+- ⚠️ Para conversa contínua, é necessário mensagem humana para disparar próxima resposta
+- ✅ Cache de IA funciona: "DETECTED AI MESSAGE from agent DENTISTA - skipping AI trigger"
+- 🎯 CONVERSA CONTÍNUA IMPLEMENTADA (26/07/2025 17:27)
+- ✅ Lógica modificada para permitir conversas entre agentes IA
+- ✅ Agentes respondem a mensagens de outros agentes (não a si mesmos)
+- ✅ Sistema evita auto-conversação (agent.id !== messageData.agentId)
+- ✅ Conversas fluem naturalmente entre DENTISTA ↔ VISITANTE
+- ✅ VISITANTE respondeu automaticamente às perguntas do DENTISTA
+- ✅ Ambos WebSocket e API implementados com lógica consistente
 
 ### Special Features
 - Replit-specific configurations for development environment

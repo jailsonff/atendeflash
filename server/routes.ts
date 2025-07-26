@@ -144,20 +144,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const message = await storage.createMessage(messageData);
       broadcast('message_received', message);
       
-      // Check for AI agent response (same logic as POST /api/messages)
-      // IMPORTANT: Only trigger AI agents for human messages, NOT for AI-generated messages
-      if (messageData.toConnectionId && !messageData.isFromAgent) {
+      // Check for AI agent response - CONTINUOUS CONVERSATION ENABLED
+      if (messageData.toConnectionId) {
         const agent = await storage.getAiAgentByConnection(messageData.toConnectionId);
         if (agent && agent.isActive) {
-          console.log(`🤖 Processing message with AI agent: ${agent.name}`);
           
-          // Use agent's individual response time
-          const responseTime = agent?.responseTime || 2000; // Default 2 seconds if not set
+          // CONTINUOUS CONVERSATION LOGIC:
+          // 1. Always respond to human messages (isFromAgent: false)
+          // 2. Respond to AI messages from OTHER agents (prevent self-talk)
+          // 3. Skip if it's from the same agent (prevent agent talking to itself)
           
-          console.log(`⏰ WEBSOCKET: Agent "${agent.name}" waiting ${responseTime}ms before response (individual delay)`);
+          const shouldRespond = !messageData.isFromAgent || // Always respond to human messages
+            (messageData.isFromAgent && messageData.agentId !== agent.id); // Respond to other agents only
           
-          // Respect the configured response time delay
-          setTimeout(async () => {
+          if (shouldRespond) {
+            console.log(`🤖 Processing message with AI agent: ${agent.name} (${messageData.isFromAgent ? 'AI-to-AI continuous' : 'Human-to-AI'})`);
+            
+            // Use agent's individual response time
+            const responseTime = agent?.responseTime || 2000; // Default 2 seconds if not set
+            
+            console.log(`⏰ WEBSOCKET: Agent "${agent.name}" waiting ${responseTime}ms before response (individual delay)`);
+            
+            // Respect the configured response time delay
+            setTimeout(async () => {
             try {
               const conversationHistory = await storage.getConversation(
                 messageData.fromConnectionId || '',
@@ -209,6 +218,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
               console.error(`❌ AI response error for agent ${agent.name}:`, error);
             }
           }, responseTime);
+          } else {
+            console.log(`🚫 WEBSOCKET: Agent "${agent.name}" SKIPPED - Same agent would be talking to itself`);
+          }
+        } else {
+          console.log(`🚫 WEBSOCKET: Agent "${agent.name}" SKIPPED - Not active or no agent found`);
         }
       }
     } catch (error) {
@@ -441,17 +455,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Check for AI agent response with configured delay
-      if (messageData.toConnectionId && !messageData.isFromAgent) {
+      // Check for AI agent response - CONTINUOUS CONVERSATION ENABLED  
+      if (messageData.toConnectionId) {
         const agent = await storage.getAiAgentByConnection(messageData.toConnectionId);
         if (agent && agent.isActive) {
-          // Use agent's individual response time
-          const responseTime = agent?.responseTime || 2000; // Default 2 seconds if not set
           
-          console.log(`⏰ API: Agent "${agent.name}" waiting ${responseTime}ms before response (individual delay)`);
+          // CONTINUOUS CONVERSATION LOGIC: Same as WebSocket version
+          const shouldRespond = !messageData.isFromAgent || // Always respond to human messages
+            (messageData.isFromAgent && messageData.agentId !== agent.id); // Respond to other agents only
           
-          // Respect the configured response time delay
-          setTimeout(async () => {
+          if (shouldRespond) {
+            // Use agent's individual response time
+            const responseTime = agent?.responseTime || 2000; // Default 2 seconds if not set
+            
+            console.log(`⏰ API: Agent "${agent.name}" waiting ${responseTime}ms before response (${messageData.isFromAgent ? 'AI-to-AI continuous' : 'Human-to-AI'}) (individual delay)`);
+            
+            // Respect the configured response time delay
+            setTimeout(async () => {
             try {
               const conversationHistory = await storage.getConversation(
                 messageData.fromConnectionId || '',
@@ -502,6 +522,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
               console.error('AI response error:', error);
             }
           }, responseTime);
+          } else {
+            console.log(`🚫 API: Agent "${agent.name}" SKIPPED - Same agent would be talking to itself`);
+          }
+        } else {
+          console.log(`🚫 API: Agent "${agent.name}" SKIPPED - Not active or no agent found`);
         }
       }
 
