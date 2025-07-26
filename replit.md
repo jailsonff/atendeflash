@@ -180,6 +180,12 @@ Preferred communication style: Simple, everyday language.
 - ✅ Conversas fluem naturalmente entre DENTISTA ↔ VISITANTE
 - ✅ VISITANTE respondeu automaticamente às perguntas do DENTISTA
 - ✅ Ambos WebSocket e API implementados com lógica consistente
+- 🎯 BOTÃO LIXEIRA CORRIGIDO (26/07/2025 18:52)
+- ✅ API modificada para limpar apenas conversas entre duas conexões específicas
+- ✅ Endpoint atualizado: DELETE /api/conversations/:connectionId1/:connectionId2
+- ✅ Frontend atualizado para identificar conexões pareadas
+- ✅ Botão de lixeira agora limpa conversas individuais, não todas as mensagens
+- ✅ Layout melhorado com text truncate e espaçamento garantido
 
 ### Special Features
 - Replit-specific configurations for development environment

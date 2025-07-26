@@ -94,15 +94,15 @@ export default function Conversas() {
   });
 
   const clearConversationMutation = useMutation({
-    mutationFn: async (connectionId: string) => {
-      const response = await apiRequest("DELETE", `/api/conversations/${connectionId}`);
+    mutationFn: async ({ connectionId1, connectionId2 }: { connectionId1: string; connectionId2: string }) => {
+      const response = await apiRequest("DELETE", `/api/conversations/${connectionId1}/${connectionId2}`);
       return response.json();
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/messages"] });
       toast({
         title: "Conversa limpa",
-        description: `${data.deletedCount} mensagens foram removidas.`,
+        description: `${data.deletedCount} mensagens foram removidas entre as conexões.`,
       });
     },
     onError: (error) => {
@@ -254,7 +254,16 @@ export default function Conversas() {
                             size="sm"
                             onClick={(e) => {
                               e.stopPropagation();
-                              clearConversationMutation.mutate(conversation.connectionId);
+                              // Find the other active connection to clear conversation between both
+                              const otherConnection = connections.find(conn => 
+                                conn.id !== conversation.connectionId && conn.status === 'connected'
+                              );
+                              if (otherConnection) {
+                                clearConversationMutation.mutate({
+                                  connectionId1: conversation.connectionId,
+                                  connectionId2: otherConnection.id
+                                });
+                              }
                             }}
                             disabled={clearConversationMutation.isPending}
                             className="h-8 w-8 p-0 text-red-400 hover:text-red-500 hover:bg-red-400/20 border border-red-400/30 rounded-md"

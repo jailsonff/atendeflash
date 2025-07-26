@@ -391,15 +391,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Clear conversation between two connections
-  app.delete("/api/conversations/:connectionId", async (req, res) => {
+  // Clear conversation between two specific connections
+  app.delete("/api/conversations/:connectionId1/:connectionId2", async (req, res) => {
     try {
-      const { connectionId } = req.params;
+      const { connectionId1, connectionId2 } = req.params;
       
-      // Get all messages where this connection is either sender or receiver
+      // Get all messages between these two specific connections
       const allMessages = await storage.getMessages();
       const messagesToDelete = allMessages.filter(msg => 
-        msg.fromConnectionId === connectionId || msg.toConnectionId === connectionId
+        (msg.fromConnectionId === connectionId1 && msg.toConnectionId === connectionId2) ||
+        (msg.fromConnectionId === connectionId2 && msg.toConnectionId === connectionId1)
       );
       
       // Delete each message
@@ -407,9 +408,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.deleteMessage(message.id);
       }
       
-      console.log(`🗑️ CLEARED CONVERSATION: Deleted ${messagesToDelete.length} messages for connection ${connectionId}`);
+      console.log(`🗑️ CLEARED CONVERSATION: Deleted ${messagesToDelete.length} messages between ${connectionId1} and ${connectionId2}`);
       
-      broadcast('conversation_cleared', { connectionId, deletedCount: messagesToDelete.length });
+      broadcast('conversation_cleared', { 
+        connectionId1, 
+        connectionId2, 
+        deletedCount: messagesToDelete.length 
+      });
       res.json({ success: true, deletedCount: messagesToDelete.length });
     } catch (error) {
       console.error('Error clearing conversation:', error);
