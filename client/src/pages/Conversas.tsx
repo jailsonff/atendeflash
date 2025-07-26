@@ -64,11 +64,11 @@ export default function Conversas() {
   }).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
   const sendMessageMutation = useMutation({
-    mutationFn: async (data: { content: string; toConnectionId: string }) => {
+    mutationFn: async (data: { content: string; toConnectionId: string; fromConnectionId: string }) => {
       const response = await apiRequest("POST", "/api/messages", {
         content: data.content,
         toConnectionId: data.toConnectionId,
-        fromConnectionId: selectedConnectionId, // Send from selected connection
+        fromConnectionId: data.fromConnectionId,
         messageType: "text",
         isFromAgent: false,
       });
@@ -120,9 +120,25 @@ export default function Conversas() {
   const handleSendMessage = () => {
     if (!newMessage.trim() || !selectedConnectionId) return;
     
+    // Find the "other" connection to send TO
+    const otherConnections = connections.filter(conn => 
+      conn.id !== selectedConnectionId && conn.status === 'connected'
+    );
+    
+    if (otherConnections.length === 0) {
+      toast({
+        title: "Erro",
+        description: "Nenhuma outra conexão ativa encontrada para enviar a mensagem.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Send from the selected connection TO the other connection
     sendMessageMutation.mutate({
       content: newMessage.trim(),
-      toConnectionId: selectedConnectionId,
+      toConnectionId: otherConnections[0].id, // Send to the first other connection
+      fromConnectionId: selectedConnectionId, // Send from the selected connection
     });
   };
 
@@ -355,9 +371,16 @@ export default function Conversas() {
                     )}
                   </Button>
                 </div>
-                <p className="text-xs text-gray-400 mt-2">
-                  Pressione Enter para enviar, Shift + Enter para quebrar linha
-                </p>
+                <div className="flex justify-between items-center mt-2">
+                  <p className="text-xs text-gray-400">
+                    Pressione Enter para enviar, Shift + Enter para quebrar linha
+                  </p>
+                  {selectedConnection && (
+                    <p className="text-xs text-[hsl(180,100%,41%)]">
+                      Enviando como: {selectedConnection.name}
+                    </p>
+                  )}
+                </div>
               </div>
             </>
           )}
