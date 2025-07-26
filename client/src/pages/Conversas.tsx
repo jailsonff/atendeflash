@@ -250,9 +250,10 @@ export default function Conversas() {
                               clearConversationMutation.mutate(conversation.connectionId);
                             }}
                             disabled={clearConversationMutation.isPending}
-                            className="h-6 w-6 p-0 text-gray-400 hover:text-red-400 hover:bg-red-400/10"
+                            className="h-8 w-8 p-0 text-red-400 hover:text-red-500 hover:bg-red-400/20 border border-red-400/30 rounded-md"
+                            title="Limpar conversa"
                           >
-                            <Trash2 className="h-3 w-3" />
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                           {conversation.unreadCount > 0 && (
                             <Badge className="bg-[hsl(328,100%,54%)] text-white text-xs">
