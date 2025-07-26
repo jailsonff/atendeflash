@@ -352,34 +352,27 @@ export default function Conversas() {
               <div className="bg-dark-secondary border-t border-gray-800 p-4">
                 <div className="flex space-x-2">
                   <Input
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    placeholder="Digite sua mensagem..."
-                    className="flex-1 bg-white border-gray-600 text-black placeholder:text-gray-500"
-                    disabled={sendMessageMutation.isPending}
+                    value=""
+                    onChange={() => {}}
+                    placeholder="Use o WhatsApp diretamente - mensagens aparecerão aqui automaticamente"
+                    className="flex-1 bg-gray-100 border-gray-300 text-gray-500 cursor-not-allowed"
+                    disabled={true}
                   />
                   <Button
-                    onClick={handleSendMessage}
-                    disabled={!newMessage.trim() || sendMessageMutation.isPending}
-                    className="bg-[hsl(180,100%,41%)] hover:bg-[hsl(180,100%,41%)]/80"
+                    disabled={true}
+                    className="bg-gray-400 cursor-not-allowed"
                   >
-                    {sendMessageMutation.isPending ? (
-                      <i className="fas fa-spinner fa-spin"></i>
-                    ) : (
-                      <i className="fas fa-paper-plane"></i>
-                    )}
+                    <i className="fas fa-ban"></i>
                   </Button>
                 </div>
-                <div className="flex justify-between items-center mt-2">
-                  <p className="text-xs text-gray-400">
-                    Pressione Enter para enviar, Shift + Enter para quebrar linha
+                <div className="text-center mt-2 p-3 bg-blue-50 border border-blue-200 rounded">
+                  <p className="text-sm text-blue-700 font-medium mb-1">
+                    📱 Como usar: Envie mensagens diretamente pelo WhatsApp
                   </p>
-                  {selectedConnection && (
-                    <p className="text-xs text-[hsl(180,100%,41%)]">
-                      Enviando como: {selectedConnection.name}
-                    </p>
-                  )}
+                  <p className="text-xs text-blue-600">
+                    Entre em contato entre JAILSON (+5581711...) e FELIX NOVO (+5538917...) pelo WhatsApp real - 
+                    todas as mensagens aparecerão aqui instantaneamente!
+                  </p>
                 </div>
               </div>
             </>

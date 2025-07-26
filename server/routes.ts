@@ -291,18 +291,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const messageData = insertMessageSchema.parse(req.body);
       const message = await storage.createMessage(messageData);
 
-      // Send via WhatsApp if connections are active
-      if (messageData.fromConnectionId && messageData.toConnectionId) {
-        const toConnection = await storage.getWhatsappConnection(messageData.toConnectionId);
-        if (toConnection && toConnection.phoneNumber && baileysWhatsAppService.isConnected(messageData.fromConnectionId)) {
-          await baileysWhatsAppService.sendMessage(
-            messageData.fromConnectionId,
-            toConnection.phoneNumber,
-            messageData.content,
-            (messageData.messageType === 'emoji' ? 'text' : messageData.messageType) || 'text'
-          );
-        }
-      }
+      // Note: Removed automatic WhatsApp sending to prevent timeouts
+      // Messages will be captured when sent directly through WhatsApp
 
       // Check for AI agent response
       if (messageData.toConnectionId && !messageData.isFromAgent) {
