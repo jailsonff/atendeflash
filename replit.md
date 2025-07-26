@@ -132,6 +132,10 @@ Preferred communication style: Simple, everyday language.
 - ✅ VISITANTE LUCAS detectando mensagens e processando respostas
 - ✅ Integração bidirecional: Mensagem humana → IA processa → Resposta automática via WhatsApp
 - ✅ Sistema completo: Interface web + WhatsApp + IA funcionando perfeitamente
+- ✅ PROBLEMA EXCLUSÃO RESOLVIDO (26/07/2025 16:07)
+- ✅ Foreign key constraint corrigido para exclusão em cascata
+- ✅ Exclusão de conexões agora remove mensagens e agentes associados
+- ✅ Sistema de exclusão funcionando perfeitamente
 
 ### Special Features
 - Replit-specific configurations for development environment

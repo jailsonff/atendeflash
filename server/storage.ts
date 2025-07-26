@@ -248,6 +248,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteWhatsappConnection(id: string): Promise<void> {
+    // Delete all messages where this connection is the sender OR receiver
+    await db.delete(messages).where(
+      or(
+        eq(messages.fromConnectionId, id),
+        eq(messages.toConnectionId, id)
+      )
+    );
+    
+    // Delete all AI agents associated with this connection
+    await db.delete(aiAgents).where(eq(aiAgents.connectionId, id));
+    
+    // Finally delete the connection itself
     await db.delete(whatsappConnections).where(eq(whatsappConnections.id, id));
   }
 
