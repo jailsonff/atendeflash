@@ -186,7 +186,7 @@ export default function Conexoes() {
                     id="name"
                     value={newConnection.name}
                     onChange={(e) => setNewConnection(prev => ({ ...prev, name: e.target.value }))}
-                    className="bg-dark-tertiary border-gray-600 text-white"
+                    className="input-dark"
                     placeholder="Ex: Atendimento Principal"
                   />
                 </div>

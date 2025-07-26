@@ -102,4 +102,21 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
+
+  /* Custom input styles for better text visibility */
+  .input-dark {
+    background-color: #f3f4f6 !important;
+    border-color: #374151 !important;
+    color: #111827 !important;
+  }
+
+  .input-dark::placeholder {
+    color: #6b7280 !important;
+  }
+
+  .input-dark:focus {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    border-color: hsl(180, 100%, 41%) !important;
+  }
 }
