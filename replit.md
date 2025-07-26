@@ -136,6 +136,10 @@ Preferred communication style: Simple, everyday language.
 - ✅ Foreign key constraint corrigido para exclusão em cascata
 - ✅ Exclusão de conexões agora remove mensagens e agentes associados
 - ✅ Sistema de exclusão funcionando perfeitamente
+- 🤖 REGRESSÃO CRÍTICA RESOLVIDA (26/07/2025 16:16)
+- ✅ Agentes IA voltaram a responder automaticamente via WebSocket
+- ✅ DENTISTA respondendo automaticamente a mensagens do WhatsApp real
+- ✅ Integração completa: WhatsApp → IA → Resposta automática funcionando
 
 ### Special Features
 - Replit-specific configurations for development environment

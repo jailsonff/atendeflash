@@ -111,14 +111,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const message = await storage.createMessage(messageData);
       broadcast('message_received', message);
       
-      // Check for AI agent responses
-      const agents = await storage.getAiAgents();
-      const activeAgent = agents.find(agent => 
-        agent.connectionId === data.connectionId && agent.isActive
-      );
-      
-      if (activeAgent) {
-        console.log(`Processing message with AI agent: ${activeAgent.name}`);
+      // Check for AI agent response (same logic as POST /api/messages)
+      if (messageData.toConnectionId && !messageData.isFromAgent) {
+        const agent = await storage.getAiAgentByConnection(messageData.toConnectionId);
+        if (agent && agent.isActive) {
+          console.log(`🤖 Processing message with AI agent: ${agent.name}`);
+          try {
+            const conversationHistory = await storage.getConversation(
+              messageData.fromConnectionId || '',
+              messageData.toConnectionId
+            );
+
+            const response = await openaiService.generateAgentResponse(
+              agent.persona,
+              messageData.content,
+              (agent.temperature || 70) / 100,
+              conversationHistory.slice(-10).map(m => m.content)
+            );
+
+            // Create AI response message
+            const aiMessage = await storage.createMessage({
+              fromConnectionId: messageData.toConnectionId,
+              toConnectionId: messageData.fromConnectionId,
+              content: response.message,
+              messageType: 'text',
+              isFromAgent: true,
+              agentId: agent.id
+            });
+
+            // Update agent message count
+            await storage.updateAiAgent(agent.id, {
+              messageCount: (agent.messageCount || 0) + 1
+            });
+
+            // Send AI response via WhatsApp
+            if (messageData.fromConnectionId) {
+              const fromConnection = await storage.getWhatsappConnection(messageData.fromConnectionId);
+              if (fromConnection && fromConnection.phoneNumber && baileysWhatsAppService.isConnected(messageData.toConnectionId)) {
+                console.log(`🚀 Sending AI response from ${agent.name} to ${fromConnection.phoneNumber}: "${response.message}"`);
+                await baileysWhatsAppService.sendMessage(
+                  messageData.toConnectionId,
+                  fromConnection.phoneNumber,
+                  response.message
+                );
+              }
+            }
+
+            broadcast('ai_response', aiMessage);
+            console.log(`✅ AI Agent ${agent.name} responded successfully`);
+          } catch (error) {
+            console.error(`❌ AI response error for agent ${agent.name}:`, error);
+          }
+        }
       }
     } catch (error) {
       console.error('Erro ao processar mensagem recebida:', error);
