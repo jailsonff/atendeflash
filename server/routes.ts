@@ -66,6 +66,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     broadcast('message_sent', data);
   });
 
+  whatsappService.on('message_received', async (data) => {
+    console.log('Mensagem recebida:', data);
+    try {
+      // Store received message in database
+      const message = await storage.createMessage({
+        fromConnectionId: data.connectionId,
+        toConnectionId: 'system', // System receives the message
+        content: data.body,
+        messageType: 'text',
+        isFromAgent: false
+      });
+      
+      broadcast('message_received', message);
+      
+      // Check for AI agent responses
+      const agents = await storage.getAiAgents();
+      const activeAgent = agents.find(agent => 
+        agent.connectionId === data.connectionId && agent.isActive
+      );
+      
+      if (activeAgent) {
+        console.log(`Processing message with AI agent: ${activeAgent.name}`);
+      }
+    } catch (error) {
+      console.error('Erro ao processar mensagem recebida:', error);
+    }
+  });
+
+  whatsappService.on('error', async (data) => {
+    console.error('Erro no WhatsApp:', data);
+    try {
+      await storage.updateWhatsappConnection(data.connectionId, { 
+        status: 'error' 
+      });
+      broadcast('error', data);
+    } catch (error) {
+      console.error('Erro ao atualizar status de erro:', error);
+    }
+  });
+
   // Dashboard API
   app.get("/api/dashboard/metrics", async (_req, res) => {
     try {
@@ -103,15 +143,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const connectionData = insertWhatsappConnectionSchema.parse(req.body);
       const connection = await storage.createWhatsappConnection(connectionData);
       
-      // Generate QR code for new connection
-      const qrCode = await whatsappService.generateQRCode(connection.id);
-      const updatedConnection = await storage.updateWhatsappConnection(connection.id, { 
-        qrCode,
-        status: 'connecting'
-      });
-
-      broadcast('new_connection', updatedConnection);
-      res.json(updatedConnection);
+      // Generate real WhatsApp QR code for new connection
+      try {
+        const qrCode = await whatsappService.generateQRCode(connection.id);
+        const updatedConnection = await storage.updateWhatsappConnection(connection.id, { 
+          qrCode,
+          status: 'connecting'
+        });
+        
+        broadcast('qr_generated', { connectionId: connection.id, qrCode });
+        res.json(updatedConnection);
+      } catch (error) {
+        console.error('Error generating QR code:', error);
+        const updatedConnection = await storage.updateWhatsappConnection(connection.id, { 
+          status: 'error'
+        });
+        res.json(updatedConnection);
+      }
     } catch (error) {
       res.status(400).json({ message: "Erro ao criar conexão: " + (error as Error).message });
     }
