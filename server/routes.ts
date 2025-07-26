@@ -291,8 +291,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const messageData = insertMessageSchema.parse(req.body);
       const message = await storage.createMessage(messageData);
 
-      // Note: Removed automatic WhatsApp sending to prevent timeouts
-      // Messages will be captured when sent directly through WhatsApp
+      // Store message in database immediately for instant UI feedback
+      // Note: Not sending via WhatsApp API to avoid timeouts - messages are sent manually
 
       // Check for AI agent response
       if (messageData.toConnectionId && !messageData.isFromAgent) {
