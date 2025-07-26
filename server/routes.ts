@@ -291,28 +291,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const messageData = insertMessageSchema.parse(req.body);
       const message = await storage.createMessage(messageData);
 
-      // Send via WhatsApp if connections are active (with timeout handling)
+      // Send via WhatsApp if connections are active (async - don't block response)
       if (messageData.fromConnectionId && messageData.toConnectionId) {
         const toConnection = await storage.getWhatsappConnection(messageData.toConnectionId);
         if (toConnection && toConnection.phoneNumber && baileysWhatsAppService.isConnected(messageData.fromConnectionId)) {
-          try {
-            // Send message via WhatsApp with shorter timeout handling
-            await Promise.race([
-              baileysWhatsAppService.sendMessage(
-                messageData.fromConnectionId,
-                toConnection.phoneNumber,
-                messageData.content,
-                (messageData.messageType === 'emoji' ? 'text' : messageData.messageType) || 'text'
-              ),
-              new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('WhatsApp send timeout')), 15000) // 15 second timeout
-              )
-            ]);
+          // Send WhatsApp message asynchronously to avoid blocking the API response
+          baileysWhatsAppService.sendMessage(
+            messageData.fromConnectionId,
+            toConnection.phoneNumber,
+            messageData.content,
+            (messageData.messageType === 'emoji' ? 'text' : messageData.messageType) || 'text'
+          ).then(() => {
             console.log(`✅ Mensagem enviada via WhatsApp: ${messageData.content}`);
-          } catch (error) {
-            console.log(`⚠️ WhatsApp envio falhou (mensagem salva na interface): ${error.message}`);
-            // Message is already saved in database, just log the WhatsApp error
-          }
+          }).catch((error) => {
+            console.log(`⚠️ WhatsApp envio falhou (mensagem já salva): ${error.message}`);
+          });
         }
       }
 

@@ -290,22 +290,31 @@ export class BaileysWhatsAppService extends EventEmitter {
   }
 
   async sendMessage(connectionId: string, to: string, message: string, type: 'text' | 'image' = 'text'): Promise<boolean> {
-    console.log(`Sending message from ${connectionId} to ${to}: ${message}`);
+    console.log(`🚀 Sending message from ${connectionId} to ${to}: ${message}`);
     
     const session = this.sessions.get(connectionId);
     if (!session || !session.socket || !session.isReady) {
+      console.log(`❌ Session not ready for ${connectionId}`);
       throw new Error('Baileys WhatsApp connection not available');
     }
 
     try {
-      // Format phone number to WhatsApp format
-      const jid = to.includes('@') ? to : `${to}@s.whatsapp.net`;
-      
-      if (type === 'text') {
-        await session.socket.sendMessage(jid, { text: message });
+      // Clean phone number format
+      let cleanNumber = to.replace(/\D/g, ''); // Remove all non-digits
+      if (cleanNumber.startsWith('55')) {
+        // Brazilian number - ensure proper format
+        const jid = `${cleanNumber}@s.whatsapp.net`;
+        console.log(`📱 Sending to WhatsApp JID: ${jid}`);
+        
+        if (type === 'text') {
+          console.log(`📤 Attempting to send message to ${jid}...`);
+          const messageOptions = { text: message };
+          const result = await session.socket.sendMessage(jid, messageOptions);
+          console.log(`✅ Message sent successfully to ${jid}:`, result?.key?.id || 'no-key');
+        }
+      } else {
+        throw new Error(`Invalid phone number format: ${to}`);
       }
-      
-      console.log(`Message sent successfully from ${connectionId} to ${to}`);
       
       this.emit('message_sent', {
         connectionId,
@@ -317,7 +326,7 @@ export class BaileysWhatsAppService extends EventEmitter {
 
       return true;
     } catch (error) {
-      console.error(`Failed to send message:`, error);
+      console.error(`❌ Failed to send message from ${connectionId} to ${to}:`, error.message);
       throw error;
     }
   }
