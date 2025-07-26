@@ -1,0 +1,127 @@
+PROMPT PARA AQUECEDOR TURBO (SEM LOGIN)
+Objetivo: Criar um sistema SaaS moderno e funcional chamado AQUECEDOR TURBO, para gerenciar conexões reais de WhatsApp com troca de mensagens em tempo real entre os números conectados, integração com agentes de IA (ChatGPT), e visual elegante estilo dark.
+
+🎯 FUNCIONALIDADES PRINCIPAIS
+Dashboard Principal
+
+Exibir:
+
+Total de conexões ativas.
+
+Número de mensagens trocadas.
+
+Agentes IA ativos.
+
+Status do sistema e conexões.
+
+Página de Conexões WhatsApp
+
+Conectar números de WhatsApp reais por QR Code, usando:
+
+WPPConnect, Venom-bot ou Baileys.
+
+Cada conexão deve permitir:
+
+Nome personalizado.
+
+Status da sessão (online/offline).
+
+Reconectar ou desconectar.
+
+As conexões são armazenadas e mantidas ativas mesmo após o refresh da página.
+
+Página de Conversas (Chat entre conexões)
+
+Interface de mensagens moderna e em tempo real.
+
+Exibir apenas conversas entre conexões do sistema, não os contatos externos do WhatsApp.
+
+Enviar e receber:
+
+Mensagens de texto.
+
+Imagens.
+
+Emojis.
+
+As mensagens aparecem simultaneamente no sistema e nos WhatsApps reais conectados.
+
+Página de Agentes IA
+
+Criar e gerenciar agentes personalizados com base no ChatGPT (OpenAI).
+
+Para cada agente:
+
+Definir nome, persona, estilo de resposta, temperatura.
+
+Vincular a uma conexão específica.
+
+Mensagens recebidas pelo número podem ser respondidas automaticamente pelo agente IA.
+
+Página de Configuração do ChatGPT
+
+Adicionar e editar a chave da API da OpenAI.
+
+Configurar tempo de resposta.
+
+Ativar mensagens automáticas ou respostas baseadas em palavra-chave.
+
+🧠 TECNOLOGIAS RECOMENDADAS
+🔧 Backend
+Node.js + Express – Servidor principal e API REST.
+
+Socket.io – Comunicação em tempo real entre conexões.
+
+WPPConnect ou Baileys – Conexão com WhatsApp Web real.
+
+MongoDB Atlas – Banco de dados escalável.
+
+OpenAI API – Para integração dos agentes com IA.
+
+💻 Frontend
+React.js – Aplicação moderna e responsiva.
+
+Tailwind CSS – Estilo clean e eficiente.
+
+Shadcn/UI – Componentes visuais premium com suporte a tema escuro.
+
+React Router – Para navegação entre páginas (sem autenticação).
+
+☁️ Infraestrutura no Replit
+Replit deployment via HTTPS com WebSocket (seguro).
+
+Banco de dados externo (como Mongo Atlas) ou uso de Replit DB se for teste inicial.
+
+Armazenamento local de sessão do WhatsApp (auth.json ou .data).
+
+🎨 ESTILO VISUAL (Dark Theme)
+Cores:
+
+Preto (fundo principal)
+
+Azul Turquesa (destaques e botões)
+
+Rosa Fluorescente (detalhes e alertas)
+
+Estilo limpo, arredondado, responsivo.
+
+Interface inspirada em apps de mensagens (ex: WhatsApp Web).
+
+💬 FUNCIONAMENTO DA CONVERSA ENTRE CONEXÕES
+Conexão A envia mensagem para Conexão B pela interface web.
+
+Essa mensagem é enviada via API do WhatsApp Web (Baileys/WPPConnect) e aparece no WhatsApp real de B.
+
+A conversa também aparece em tempo real na interface do sistema.
+
+Se a Conexão B estiver com agente IA ativado, a resposta automática será enviada via ChatGPT.
+
+📂 PÁGINAS DO SISTEMA
+bash
+Copiar
+Editar
+/dashboard
+/conexoes
+/conversas
+/agentes
+/chatgpt
