@@ -1,6 +1,8 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { baileysWhatsAppService } from "./services/baileys-whatsapp";
+import { storage } from "./storage";
 
 const app = express();
 app.use(express.json());
@@ -65,7 +67,34 @@ app.use((req, res, next) => {
     port,
     host: "0.0.0.0",
     reusePort: true,
-  }, () => {
+  }, async () => {
     log(`serving on port ${port}`);
+    
+    // Restore active WhatsApp connections on server startup
+    try {
+      const connections = await storage.getWhatsappConnections();
+      const activeConnections = connections.filter(conn => 
+        conn.status === 'connected' && conn.sessionData
+      );
+      
+      if (activeConnections.length > 0) {
+        log(`Restoring ${activeConnections.length} active WhatsApp connections...`);
+        
+        for (const connection of activeConnections) {
+          try {
+            await baileysWhatsAppService.restoreSession(connection.id);
+            log(`Restored connection: ${connection.name} (${connection.phoneNumber})`);
+          } catch (error) {
+            console.error(`Failed to restore connection ${connection.id}:`, error);
+            // Mark as disconnected if restoration fails
+            await storage.updateWhatsappConnection(connection.id, { 
+              status: 'disconnected' 
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error restoring WhatsApp connections:', error);
+    }
   });
 })();
