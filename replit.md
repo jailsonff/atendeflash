@@ -94,9 +94,19 @@ Preferred communication style: Simple, everyday language.
 - **Production**: `npm run build && npm start` - Builds both frontend and backend, serves static files through Express
 - **Database**: Uses Drizzle with PostgreSQL, configured for Neon Database serverless
 
+### Recent Changes (26/07/2025)
+- QR codes reais do WhatsApp via Baileys implementados com sucesso
+- Sistema de detecção automática de conexão funcionando perfeitamente
+- Modal do QR code fecha automaticamente quando WhatsApp é conectado
+- Números reais (+558171196726) aparecem após conexão bem-sucedida
+- Recebimento de mensagens em tempo real implementado
+- Socket.io configurado para atualizações instantâneas de status
+
 ### Special Features
 - Replit-specific configurations for development environment
 - WebSocket support for real-time features
 - Font Awesome icons integration
 - Responsive design with mobile support
 - Error boundary and runtime error handling in development
+- Authentic WhatsApp QR code integration with Baileys
+- Automatic connection detection and UI updates
