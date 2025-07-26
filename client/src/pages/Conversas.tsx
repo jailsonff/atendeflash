@@ -208,31 +208,38 @@ export default function Conversas() {
                 {conversations.map((conversation) => (
                   <div
                     key={conversation.connectionId}
-                    onClick={() => setSelectedConnectionId(conversation.connectionId)}
                     className={`p-3 rounded-lg cursor-pointer transition-colors ${
                       selectedConnectionId === conversation.connectionId
                         ? 'bg-primary/20 border border-primary/30'
                         : 'hover:bg-muted'
                     }`}
                   >
-                    <div className="flex items-center space-x-3">
-                      <div className="relative">
-                        <div className="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center">
-                          <i className="fab fa-whatsapp text-green-400"></i>
+                    <div className="flex items-center justify-between">
+                      <div 
+                        className="flex items-center space-x-3 flex-1 min-w-0"
+                        onClick={() => setSelectedConnectionId(conversation.connectionId)}
+                      >
+                        <div className="relative flex-shrink-0">
+                          <div className="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center">
+                            <i className="fab fa-whatsapp text-green-400"></i>
+                          </div>
+                          <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-dark-secondary"></div>
                         </div>
-                        <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-dark-secondary"></div>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-white truncate">
-                          {conversation.connectionName}
-                        </p>
-                        {conversation.lastMessage && (
-                          <p className="text-sm text-gray-400 truncate">
-                            {conversation.lastMessage}
+                        <div className="flex-1 min-w-0 pr-3">
+                          <p className="font-medium text-white truncate">
+                            {conversation.connectionName}
                           </p>
-                        )}
+                          {conversation.lastMessage && (
+                            <p className="text-sm text-gray-400 truncate">
+                              {conversation.lastMessage.length > 45 
+                                ? conversation.lastMessage.substring(0, 45) + '...'
+                                : conversation.lastMessage
+                              }
+                            </p>
+                          )}
+                        </div>
                       </div>
-                      <div className="text-right flex flex-col items-end space-y-1">
+                      <div className="flex flex-col items-end space-y-1 flex-shrink-0">
                         {conversation.lastMessageTime && (
                           <p className="text-xs text-gray-400">
                             {new Date(conversation.lastMessageTime).toLocaleTimeString('pt-BR', {
