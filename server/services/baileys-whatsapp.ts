@@ -158,21 +158,23 @@ export class BaileysWhatsAppService extends EventEmitter {
         // Handle credentials update
         socket.ev.on('creds.update', saveCreds);
 
-        // Handle incoming messages
+        // Handle incoming and outgoing messages
         socket.ev.on('messages.upsert', ({ messages, type }) => {
           if (type === 'notify') {
             for (const message of messages) {
-              if (!message.key.fromMe && message.message) {
-                console.log(`Message received on ${connectionId}:`, message.message);
+              if (message.message) {
+                console.log(`Message ${message.key.fromMe ? 'sent' : 'received'} on ${connectionId}:`, message.message);
                 
                 const messageContent = this.extractMessageContent(message);
                 
+                // Emit both incoming and outgoing messages
                 this.emit('message_received', {
                   connectionId,
                   from: message.key.remoteJid,
                   body: messageContent,
                   timestamp: new Date(message.messageTimestamp ? message.messageTimestamp * 1000 : Date.now()),
-                  type: 'text'
+                  type: 'text',
+                  fromMe: message.key.fromMe || false
                 });
               }
             }
@@ -465,12 +467,12 @@ export class BaileysWhatsAppService extends EventEmitter {
       // Handle credentials update
       socket.ev.on('creds.update', saveCreds);
 
-      // Handle incoming messages
+      // Handle incoming and outgoing messages
       socket.ev.on('messages.upsert', ({ messages, type }) => {
         if (type === 'notify') {
           for (const message of messages) {
-            if (!message.key.fromMe && message.message) {
-              console.log(`Message received on restored ${connectionId}:`, message.message);
+            if (message.message) {
+              console.log(`Message ${message.key.fromMe ? 'sent' : 'received'} on restored ${connectionId}:`, message.message);
               
               const content = this.extractMessageContent(message);
               
@@ -479,7 +481,8 @@ export class BaileysWhatsAppService extends EventEmitter {
                 from: message.key.remoteJid,
                 body: content,
                 timestamp: new Date(message.messageTimestamp ? message.messageTimestamp * 1000 : Date.now()),
-                type: 'text'
+                type: 'text',
+                fromMe: message.key.fromMe || false
               });
             }
           }
