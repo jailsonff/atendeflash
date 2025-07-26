@@ -98,20 +98,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           isFromAgent: false,
           agentId: null
         };
-      } else if (!senderConnection && !data.fromMe) {
-        // This is a message from external contact to one of our connections
-        console.log(`📨 Mensagem externa para: ${connections.find(c => c.id === data.connectionId)?.name}`);
-        messageData = {
-          fromConnectionId: data.connectionId,
-          toConnectionId: 'system',
-          content: data.body,
-          messageType: 'text' as const,
-          isFromAgent: false,
-          agentId: null
-        };
       } else {
-        // Skip - this is a duplicate message from the sender side
-        console.log(`⏭️  Ignorando duplicata: ${senderConnection?.name || 'desconhecido'} (própria mensagem)`);
+        // Skip external messages and duplicates - we only want inter-connection messages
+        if (!senderConnection && !data.fromMe) {
+          console.log(`🚫 Ignorando mensagem externa para: ${connections.find(c => c.id === data.connectionId)?.name}`);
+        } else {
+          console.log(`⏭️  Ignorando duplicata: ${senderConnection?.name || 'desconhecido'} (própria mensagem)`);
+        }
         return;
       }
       
@@ -257,28 +250,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Messages API - Filter to show only inter-connection conversations
+  // Messages API - Show only inter-connection conversations
   app.get("/api/messages", async (_req, res) => {
     try {
       const allMessages = await storage.getMessages();
       const connections = await storage.getWhatsappConnections();
-      const connectedNumbers = connections
-        .filter(conn => conn.status === 'connected' && conn.phoneNumber)
-        .map(conn => conn.phoneNumber);
+      const connectedIds = connections
+        .filter(conn => conn.status === 'connected')
+        .map(conn => conn.id);
 
-      // Filter messages to show only conversations between our own connections
-      const filteredMessages = allMessages.filter(message => {
-        // Check if the message is from/to one of our connected numbers
-        const fromNumber = message.from?.replace(/\D/g, '');
-        const isFromOurConnection = connectedNumbers.some(num => 
-          num.replace(/\D/g, '').includes(fromNumber || '')
-        );
+      // Filter to show ONLY messages between our own connections
+      const interConnectionMessages = allMessages.filter(message => {
+        // Show messages where BOTH sender and receiver are our connections
+        const fromIsOurConnection = connectedIds.includes(message.fromConnectionId);
+        const toIsOurConnection = connectedIds.includes(message.toConnectionId);
         
-        // Only show inter-connection messages or system messages
-        return message.toConnectionId === 'system' && isFromOurConnection;
+        // Only show if both sides are our connections (inter-connection chat)
+        return fromIsOurConnection && toIsOurConnection;
       });
 
-      res.json(filteredMessages);
+      console.log(`📋 Mensagens filtradas: ${interConnectionMessages.length} de ${allMessages.length} (apenas inter-conexões)`);
+      res.json(interConnectionMessages);
     } catch (error) {
       res.status(500).json({ message: "Erro ao buscar mensagens" });
     }
