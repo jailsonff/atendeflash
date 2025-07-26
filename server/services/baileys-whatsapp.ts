@@ -98,16 +98,22 @@ export class BaileysWhatsAppService extends EventEmitter {
                 clearTimeout(this.reconnectTimeouts.get(connectionId)!);
               }
               
+              // For QR code expiration (error 515), reconnect faster
+              const isQRExpired = (lastDisconnect?.error as Boom)?.output?.statusCode === 515;
+              const delay = isQRExpired ? 2000 : 10000; // 2 seconds for QR expiry, 10 for others
+              
               // Auto reconnect with backoff - only if not already reconnecting
               const timeout = setTimeout(() => {
                 this.reconnectTimeouts.delete(connectionId);
                 try {
-                  console.log(`Attempting reconnect for ${connectionId}`);
+                  console.log(`Attempting ${isQRExpired ? 'QR regeneration' : 'reconnect'} for ${connectionId}`);
+                  // Remove existing session to force fresh QR generation
+                  this.sessions.delete(connectionId);
                   this.generateQRCode(connectionId);
                 } catch (reconnectError) {
                   console.error(`Failed to reconnect ${connectionId}:`, reconnectError);
                 }
-              }, 10000); // Increase delay to 10 seconds
+              }, delay);
               
               this.reconnectTimeouts.set(connectionId, timeout);
             }
@@ -173,12 +179,19 @@ export class BaileysWhatsAppService extends EventEmitter {
           }
         });
 
-        // Timeout after 30 seconds if no QR code - don't reject, just log
+        // Timeout after 45 seconds if no QR code - regenerate automatically
         setTimeout(() => {
-          if (!session.qrCode) {
-            console.log(`QR code generation timeout for ${connectionId} - continuing without reject`);
+          if (!session.qrCode && !session.isReady) {
+            console.log(`QR code generation timeout for ${connectionId} - regenerating`);
+            // Remove session and try again
+            this.sessions.delete(connectionId);
+            setTimeout(() => {
+              this.generateQRCode(connectionId).catch(error => {
+                console.error(`Failed to regenerate QR for ${connectionId}:`, error);
+              });
+            }, 1000);
           }
-        }, 30000);
+        }, 45000);
 
       } catch (error) {
         console.error(`Failed to initialize Baileys client for ${connectionId}:`, error);
