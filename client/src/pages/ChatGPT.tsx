@@ -234,7 +234,7 @@ export default function ChatGPT() {
                     setApiTestResult({ valid: false, tested: false });
                   }}
                   placeholder="sk-..."
-                  className="flex-1 bg-input border-border text-foreground"
+                  className="flex-1 bg-white border-border text-black"
                 />
                 <Button
                   onClick={handleTestApi}
@@ -349,7 +349,7 @@ export default function ChatGPT() {
                   onChange={(e) => setNewKeyword(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && addKeyword()}
                   placeholder="Ex: ajuda, suporte, problema..."
-                  className="flex-1 bg-dark-tertiary border-gray-600 text-white"
+                  className="flex-1 bg-white border-gray-600 text-black"
                 />
                 <Button
                   onClick={addKeyword}

@@ -220,7 +220,7 @@ export default function Agentes() {
                       id="name"
                       value={agentForm.name}
                       onChange={(e) => setAgentForm(prev => ({ ...prev, name: e.target.value }))}
-                      className="bg-dark-tertiary border-gray-600 text-white"
+                      className="bg-white border-gray-600 text-black"
                       placeholder="Ex: Atendente Virtual"
                     />
                   </div>
@@ -230,10 +230,10 @@ export default function Agentes() {
                       value={agentForm.connectionId} 
                       onValueChange={(value) => setAgentForm(prev => ({ ...prev, connectionId: value }))}
                     >
-                      <SelectTrigger className="bg-dark-tertiary border-gray-600 text-white">
+                      <SelectTrigger className="bg-white border-gray-600 text-black">
                         <SelectValue placeholder="Selecione uma conexão" />
                       </SelectTrigger>
-                      <SelectContent className="bg-dark-tertiary border-gray-600">
+                      <SelectContent className="bg-white border-gray-600">
                         {availableConnections.map((connection) => (
                           <SelectItem key={connection.id} value={connection.id}>
                             {connection.name} ({connection.phoneNumber})
@@ -250,7 +250,7 @@ export default function Agentes() {
                     id="description"
                     value={agentForm.description}
                     onChange={(e) => setAgentForm(prev => ({ ...prev, description: e.target.value }))}
-                    className="bg-dark-tertiary border-gray-600 text-white"
+                    className="bg-white border-gray-600 text-black"
                     placeholder="Ex: Especialista em atendimento ao cliente"
                   />
                 </div>
@@ -261,7 +261,7 @@ export default function Agentes() {
                     id="persona"
                     value={agentForm.persona}
                     onChange={(e) => setAgentForm(prev => ({ ...prev, persona: e.target.value }))}
-                    className="bg-dark-tertiary border-gray-600 text-white min-h-24"
+                    className="bg-white border-gray-600 text-black min-h-24"
                     placeholder="Descreva como o agente deve se comportar, seu tom de voz, conhecimentos específicos, etc."
                   />
                 </div>
