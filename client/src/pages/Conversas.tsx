@@ -52,10 +52,16 @@ export default function Conversas() {
     refetchInterval: 5000, // Refresh every 5 seconds
   });
 
-  const { data: conversationMessages = [] } = useQuery<Message[]>({
-    queryKey: ["/api/conversations", selectedConnectionId, "system"],
-    enabled: !!selectedConnectionId,
-  });
+  // Get messages for selected conversation - filter inter-connection messages
+  const conversationMessages = allMessages.filter(message => {
+    if (!selectedConnectionId) return false;
+    // Show messages where the selected connection is either sender or receiver
+    return (message.fromConnectionId === selectedConnectionId || 
+            message.toConnectionId === selectedConnectionId) &&
+           // Only show inter-connection messages (not system messages)
+           message.fromConnectionId !== 'system' && 
+           message.toConnectionId !== 'system';
+  }).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
   const sendMessageMutation = useMutation({
     mutationFn: async (data: { content: string; toConnectionId: string }) => {
@@ -257,62 +263,70 @@ export default function Conversas() {
                       <p className="text-sm">Envie a primeira mensagem!</p>
                     </div>
                   ) : (
-                    conversationMessages.map((message) => (
-                      <div
-                        key={message.id}
-                        className={`chat-bubble flex items-start space-x-3 ${
-                          message.fromConnectionId === "system" ? "flex-row-reverse" : ""
-                        }`}
-                      >
+                    conversationMessages.map((message) => {
+                      const isFromSelected = message.fromConnectionId === selectedConnectionId;
+                      const senderConnection = connections.find(c => c.id === message.fromConnectionId);
+                      const receiverConnection = connections.find(c => c.id === message.toConnectionId);
+                      
+                      return (
                         <div
-                          className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                            message.isFromAgent
-                              ? "bg-[hsl(328,100%,54%)]"
-                              : message.fromConnectionId === "system"
-                              ? "bg-[hsl(180,100%,41%)]"
-                              : "bg-gray-600"
+                          key={message.id}
+                          className={`chat-bubble flex items-start space-x-3 ${
+                            isFromSelected ? "flex-row-reverse" : ""
                           }`}
                         >
-                          <i
-                            className={`fas ${
-                              message.isFromAgent
-                                ? "fa-robot"
-                                : message.fromConnectionId === "system"
-                                ? "fa-user"
-                                : "fa-whatsapp"
-                            } text-white text-xs`}
-                          ></i>
-                        </div>
-                        <div className="flex-1">
                           <div
-                            className={`rounded-lg px-3 py-2 ${
-                              message.fromConnectionId === "system"
-                                ? "bg-[hsl(180,100%,41%)]/20 border border-[hsl(180,100%,41%)]/30"
-                                : message.isFromAgent
-                                ? "bg-[hsl(328,100%,54%)]/20 border border-[hsl(328,100%,54%)]/30"
-                                : "bg-dark-tertiary"
+                            className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                              message.isFromAgent
+                                ? "bg-[hsl(328,100%,54%)]"
+                                : isFromSelected
+                                ? "bg-[hsl(180,100%,41%)]"
+                                : "bg-gray-600"
                             }`}
                           >
-                            <p className="text-sm text-white">{message.content}</p>
+                            <i
+                              className={`fas ${
+                                message.isFromAgent
+                                  ? "fa-robot"
+                                  : "fa-whatsapp"
+                              } text-white text-xs`}
+                            ></i>
                           </div>
-                          <div className="flex items-center justify-between mt-1">
-                            <p
-                              className={`text-xs text-gray-400 ${
-                                message.fromConnectionId === "system" ? "text-right" : ""
+                          <div className="flex-1">
+                            {!isFromSelected && (
+                              <p className="text-xs text-gray-400 mb-1">
+                                {senderConnection?.name || 'Desconhecido'}
+                              </p>
+                            )}
+                            <div
+                              className={`rounded-lg px-3 py-2 ${
+                                isFromSelected
+                                  ? "bg-[hsl(180,100%,41%)]/20 border border-[hsl(180,100%,41%)]/30"
+                                  : message.isFromAgent
+                                  ? "bg-[hsl(328,100%,54%)]/20 border border-[hsl(328,100%,54%)]/30"
+                                  : "bg-dark-tertiary"
                               }`}
                             >
-                              {new Date(message.timestamp).toLocaleTimeString('pt-BR')}
-                            </p>
-                            {message.isFromAgent && (
-                              <Badge variant="secondary" className="text-xs">
-                                <i className="fas fa-robot mr-1"></i>
-                                IA
-                              </Badge>
-                            )}
+                              <p className="text-sm text-white">{message.content}</p>
+                            </div>
+                            <div className="flex items-center justify-between mt-1">
+                              <p className="text-xs text-gray-400">
+                                {new Date(message.timestamp).toLocaleTimeString('pt-BR', {
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </p>
+                              {message.isFromAgent && (
+                                <Badge variant="secondary" className="text-xs">
+                                  <i className="fas fa-robot mr-1"></i>
+                                  IA
+                                </Badge>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                   <div ref={messagesEndRef} />
                 </div>
