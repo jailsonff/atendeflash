@@ -90,9 +90,12 @@ export class BaileysWhatsAppService extends EventEmitter {
               platform: 'baileys'
             };
             
+            const phoneNumber = socket.user?.id?.split(':')[0]?.replace(/\D/g, '') || 'unknown';
+            const formattedPhone = phoneNumber !== 'unknown' && phoneNumber.length > 10 ? `+${phoneNumber}` : phoneNumber;
+            
             this.emit('connected', { 
               connectionId, 
-              phoneNumber: socket.user?.id?.split(':')[0] || 'unknown' 
+              phoneNumber: formattedPhone
             });
           }
         });

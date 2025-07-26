@@ -93,6 +93,28 @@ export default function Conexoes() {
   const { toast } = useToast();
   useSocket();
 
+  // Listen for WhatsApp connection events to close QR modal
+  useEffect(() => {
+    const handleWhatsAppConnected = (event: CustomEvent) => {
+      const { connectionId, phoneNumber } = event.detail;
+      
+      // Close QR modal if it matches the connected connection
+      if (qrModalData && qrModalData.connectionId === connectionId) {
+        setQrModalData(null);
+        toast({
+          title: "WhatsApp conectado!",
+          description: `Número: ${phoneNumber}`,
+        });
+      }
+    };
+
+    window.addEventListener('whatsapp-connected', handleWhatsAppConnected as EventListener);
+    
+    return () => {
+      window.removeEventListener('whatsapp-connected', handleWhatsAppConnected as EventListener);
+    };
+  }, [qrModalData, toast]);
+
   const { data: connections = [], isLoading } = useQuery<WhatsappConnection[]>({
     queryKey: ["/api/connections"],
   });

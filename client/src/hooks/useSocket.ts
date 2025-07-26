@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
+import { queryClient } from '@/lib/queryClient';
 
 export function useSocket() {
   const [isConnected, setIsConnected] = useState(false);
@@ -49,6 +50,44 @@ export function useSocket() {
 
       socket.on('reconnect_failed', () => {
         console.error('Falha ao reconectar após múltiplas tentativas');
+      });
+
+      // Listen to WhatsApp connection events
+      socket.on('qr_generated', (data: { connectionId: string; qrCode: string }) => {
+        console.log('QR Code received:', data);
+        queryClient.invalidateQueries({ queryKey: ["/api/connections"] });
+      });
+
+      socket.on('connection_status', (data: { connectionId: string; status: string; phoneNumber?: string }) => {
+        console.log('Connection status update:', data);
+        queryClient.invalidateQueries({ queryKey: ["/api/connections"] });
+        
+        // Emit custom event when WhatsApp is connected
+        if (data.status === 'connected') {
+          window.dispatchEvent(new CustomEvent('whatsapp-connected', { 
+            detail: { connectionId: data.connectionId, phoneNumber: data.phoneNumber } 
+          }));
+        }
+      });
+
+      socket.on('new_connection', (data: any) => {
+        console.log('New connection:', data);
+        queryClient.invalidateQueries({ queryKey: ["/api/connections"] });
+      });
+
+      socket.on('connection_deleted', (data: { id: string }) => {
+        console.log('Connection deleted:', data);
+        queryClient.invalidateQueries({ queryKey: ["/api/connections"] });
+      });
+
+      socket.on('message_received', (data: any) => {
+        console.log('Message received:', data);
+        queryClient.invalidateQueries({ queryKey: ["/api/messages"] });
+      });
+
+      socket.on('message_sent', (data: any) => {
+        console.log('Message sent:', data);
+        queryClient.invalidateQueries({ queryKey: ["/api/messages"] });
       });
 
     } catch (error) {
