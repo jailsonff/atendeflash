@@ -130,14 +130,16 @@ export class BaileysWhatsAppService extends EventEmitter {
             const phoneNumber = socket.user?.id?.split(':')[0]?.replace(/\D/g, '') || 'unknown';
             const formattedPhone = phoneNumber !== 'unknown' && phoneNumber.length > 10 ? `+${phoneNumber}` : phoneNumber;
             
-            // Save session data to database
+            // Save session data to database with persistent flag
             if (this.storage) {
               this.storage.updateWhatsappConnection(connectionId, {
                 sessionData: JSON.stringify({
                   id: socket.user?.id,
                   name: socket.user?.name,
                   platform: 'baileys',
-                  authState: 'connected'
+                  authState: 'connected',
+                  persistent: true,
+                  savedAt: new Date().toISOString()
                 }),
                 phoneNumber: formattedPhone,
                 status: 'connected',
@@ -440,14 +442,16 @@ export class BaileysWhatsAppService extends EventEmitter {
           const phoneNumber = socket.user?.id?.split(':')[0]?.replace(/\D/g, '') || 'unknown';
           const formattedPhone = phoneNumber !== 'unknown' && phoneNumber.length > 10 ? `+${phoneNumber}` : phoneNumber;
           
-          // Update session data in database
+          // Update session data in database with persistent flag
           if (this.storage) {
             this.storage.updateWhatsappConnection(connectionId, {
               sessionData: JSON.stringify({
                 id: socket.user?.id,
                 name: socket.user?.name,
                 platform: 'baileys',
-                authState: 'connected'
+                authState: 'connected',
+                persistent: true,
+                restoredAt: new Date().toISOString()
               }),
               phoneNumber: formattedPhone,
               status: 'connected',

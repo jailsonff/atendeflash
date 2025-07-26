@@ -70,31 +70,41 @@ app.use((req, res, next) => {
   }, async () => {
     log(`serving on port ${port}`);
     
-    // Restore active WhatsApp connections on server startup
-    try {
-      const connections = await storage.getWhatsappConnections();
-      const activeConnections = connections.filter(conn => 
-        conn.status === 'connected' && conn.sessionData
-      );
-      
-      if (activeConnections.length > 0) {
-        log(`Restoring ${activeConnections.length} active WhatsApp connections...`);
-        
-        for (const connection of activeConnections) {
+    // Restore active WhatsApp connections on server startup - CRITICAL for consistency
+    setTimeout(async () => {
+      try {
+        log('🔄 INICIANDO RESTAURAÇÃO DE CONEXÕES WHATSAPP...');
+        const connections = await storage.getWhatsappConnections();
+        const persistentConnections = connections.filter(conn => {
           try {
-            await baileysWhatsAppService.restoreSession(connection.id);
-            log(`Restored connection: ${connection.name} (${connection.phoneNumber})`);
-          } catch (error) {
-            console.error(`Failed to restore connection ${connection.id}:`, error);
-            // Mark as disconnected if restoration fails
-            await storage.updateWhatsappConnection(connection.id, { 
-              status: 'disconnected' 
-            });
+            if (!conn.sessionData) return false;
+            const sessionData = JSON.parse(conn.sessionData);
+            return sessionData.persistent === true && conn.status === 'connected';
+          } catch {
+            return false;
           }
+        });
+        
+        if (persistentConnections.length > 0) {
+          log(`📱 Encontradas ${persistentConnections.length} conexões WhatsApp para restaurar...`);
+          
+          for (const connection of persistentConnections) {
+            try {
+              log(`🔗 Restaurando: ${connection.name} (${connection.phoneNumber})`);
+              await baileysWhatsAppService.restoreSession(connection.id);
+              log(`✅ Conexão ${connection.name} restaurada com sucesso!`);
+            } catch (error) {
+              console.error(`❌ Falha ao restaurar ${connection.id}:`, error);
+              // Keep as connected - don't mark as disconnected to preserve user data
+              log(`⚠️  Mantendo ${connection.name} como conectada para nova tentativa`);
+            }
+          }
+        } else {
+          log('📝 Nenhuma conexão persistente encontrada para restaurar');
         }
+      } catch (error) {
+        console.error('❌ Erro crítico na restauração de conexões:', error);
       }
-    } catch (error) {
-      console.error('Error restoring WhatsApp connections:', error);
-    }
+    }, 5000); // Wait 5 seconds after server startup
   });
 })();
