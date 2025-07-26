@@ -114,6 +114,7 @@ export class BaileysWhatsAppService extends EventEmitter {
           } else if (connection === 'open') {
             console.log(`Baileys WhatsApp connected for ${connectionId}`);
             session.isReady = true;
+            session.qrCode = undefined; // Clear QR code
             session.clientInfo = {
               pushname: socket.user?.name || 'WhatsApp User',
               id: socket.user?.id || null,
@@ -134,6 +135,7 @@ export class BaileysWhatsAppService extends EventEmitter {
                 }),
                 phoneNumber: formattedPhone,
                 status: 'connected',
+                qrCode: null, // Clear QR code in database
                 lastSeen: new Date()
               }).catch((error: any) => {
                 console.error('Failed to update connection in database:', error);
@@ -325,15 +327,29 @@ export class BaileysWhatsAppService extends EventEmitter {
   async deleteSession(connectionId: string): Promise<void> {
     console.log(`Deleting Baileys WhatsApp session: ${connectionId}`);
     
+    // Clear any pending reconnect timeout
+    if (this.reconnectTimeouts.has(connectionId)) {
+      clearTimeout(this.reconnectTimeouts.get(connectionId)!);
+      this.reconnectTimeouts.delete(connectionId);
+    }
+    
     const session = this.sessions.get(connectionId);
     if (session && session.socket) {
-      await session.socket.logout();
+      try {
+        await session.socket.logout();
+      } catch (error) {
+        console.error(`Error during logout for ${connectionId}:`, error);
+      }
     }
     
     // Remove session directory
     const sessionDir = path.join(process.cwd(), '.baileys_auth', `session_${connectionId}`);
     if (fs.existsSync(sessionDir)) {
-      fs.rmSync(sessionDir, { recursive: true, force: true });
+      try {
+        fs.rmSync(sessionDir, { recursive: true, force: true });
+      } catch (error) {
+        console.error(`Error removing session directory for ${connectionId}:`, error);
+      }
     }
     
     this.sessions.delete(connectionId);

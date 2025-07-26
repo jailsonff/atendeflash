@@ -172,10 +172,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/connections/:id", async (req, res) => {
     try {
       const { id } = req.params;
-      await baileysWhatsAppService.disconnectWhatsApp(id);
+      
+      // Delete from WhatsApp service first
+      try {
+        await baileysWhatsAppService.deleteSession(id);
+      } catch (whatsappError) {
+        console.error('Error deleting WhatsApp session:', whatsappError);
+        // Continue with database deletion even if WhatsApp deletion fails
+      }
+      
       await storage.deleteWhatsappConnection(id);
       broadcast('connection_deleted', { id });
-      res.json({ success: true });
+      res.json({ success: true, message: 'Conexão deletada com sucesso' });
     } catch (error) {
       res.status(500).json({ message: "Erro ao deletar conexão: " + (error as Error).message });
     }
