@@ -456,11 +456,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/agents", async (req, res) => {
     try {
+      console.log('🔍 CREATING AGENT - Request body:', JSON.stringify(req.body, null, 2));
+      
+      // Validate that connectionId exists and is valid
+      if (!req.body.connectionId) {
+        return res.status(400).json({ message: "connectionId é obrigatório" });
+      }
+      
+      // Check if connection exists
+      const connection = await storage.getWhatsappConnection(req.body.connectionId);
+      if (!connection) {
+        return res.status(400).json({ message: "Conexão WhatsApp não encontrada" });
+      }
+      
+      console.log('✅ Connection found:', connection.name);
+      
       const agentData = insertAiAgentSchema.parse(req.body);
+      console.log('✅ Schema validation passed:', JSON.stringify(agentData, null, 2));
+      
       const agent = await storage.createAiAgent(agentData);
+      console.log('✅ Agent created successfully:', agent.id);
+      
       broadcast('new_agent', agent);
       res.json(agent);
     } catch (error) {
+      console.error('❌ Error creating agent:', error);
       res.status(400).json({ message: "Erro ao criar agente: " + (error as Error).message });
     }
   });

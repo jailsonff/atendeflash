@@ -161,6 +161,22 @@ export default function Agentes() {
   };
 
   const handleSubmit = () => {
+    // Validate required fields
+    if (!agentForm.name.trim()) {
+      toast({ title: "Erro", description: "Nome do agente é obrigatório", variant: "destructive" });
+      return;
+    }
+    
+    if (!agentForm.connectionId) {
+      toast({ title: "Erro", description: "Selecione uma conexão WhatsApp", variant: "destructive" });
+      return;
+    }
+    
+    if (!agentForm.persona.trim()) {
+      toast({ title: "Erro", description: "Persona do agente é obrigatória", variant: "destructive" });
+      return;
+    }
+
     if (editingAgent) {
       updateAgentMutation.mutate({ id: editingAgent.id, data: agentForm });
     } else {
