@@ -130,23 +130,30 @@ export class BaileysWhatsAppService extends EventEmitter {
             const phoneNumber = socket.user?.id?.split(':')[0]?.replace(/\D/g, '') || 'unknown';
             const formattedPhone = phoneNumber !== 'unknown' && phoneNumber.length > 10 ? `+${phoneNumber}` : phoneNumber;
             
-            // Save session data to database with persistent flag
+            // CRITICAL: Save session data with PERMANENT persistence flag
             if (this.storage) {
+              const persistentSessionData = {
+                id: socket.user?.id,
+                name: socket.user?.name,
+                platform: 'baileys',
+                authState: 'connected',
+                persistent: true,
+                permanent: true, // NEVER delete this connection
+                autoRestore: true,
+                savedAt: new Date().toISOString(),
+                connectionTimestamp: Date.now()
+              };
+
               this.storage.updateWhatsappConnection(connectionId, {
-                sessionData: JSON.stringify({
-                  id: socket.user?.id,
-                  name: socket.user?.name,
-                  platform: 'baileys',
-                  authState: 'connected',
-                  persistent: true,
-                  savedAt: new Date().toISOString()
-                }),
+                sessionData: JSON.stringify(persistentSessionData),
                 phoneNumber: formattedPhone,
                 status: 'connected',
-                qrCode: null, // Clear QR code in database
+                qrCode: null,
                 lastSeen: new Date()
+              }).then(() => {
+                console.log(`🔒 CONEXÃO SALVA PERMANENTEMENTE: ${formattedPhone} (${connectionId})`);
               }).catch((error: any) => {
-                console.error('Failed to update connection in database:', error);
+                console.error('❌ ERRO CRÍTICO - Falha ao salvar conexão persistente:', error);
               });
             }
             
@@ -442,22 +449,29 @@ export class BaileysWhatsAppService extends EventEmitter {
           const phoneNumber = socket.user?.id?.split(':')[0]?.replace(/\D/g, '') || 'unknown';
           const formattedPhone = phoneNumber !== 'unknown' && phoneNumber.length > 10 ? `+${phoneNumber}` : phoneNumber;
           
-          // Update session data in database with persistent flag
+          // CRITICAL: Update session data with PERMANENT persistence
           if (this.storage) {
+            const persistentSessionData = {
+              id: socket.user?.id,
+              name: socket.user?.name,
+              platform: 'baileys',
+              authState: 'connected',
+              persistent: true,
+              permanent: true, // NEVER delete this connection
+              autoRestore: true,
+              restoredAt: new Date().toISOString(),
+              connectionTimestamp: Date.now()
+            };
+
             this.storage.updateWhatsappConnection(connectionId, {
-              sessionData: JSON.stringify({
-                id: socket.user?.id,
-                name: socket.user?.name,
-                platform: 'baileys',
-                authState: 'connected',
-                persistent: true,
-                restoredAt: new Date().toISOString()
-              }),
+              sessionData: JSON.stringify(persistentSessionData),
               phoneNumber: formattedPhone,
               status: 'connected',
               lastSeen: new Date()
+            }).then(() => {
+              console.log(`🔄 CONEXÃO RESTAURADA E SALVA: ${formattedPhone} (${connectionId})`);
             }).catch((storageError: any) => {
-              console.error('Failed to update connection in database:', storageError);
+              console.error('❌ ERRO CRÍTICO - Falha ao salvar conexão restaurada:', storageError);
             });
           }
           

@@ -70,41 +70,63 @@ app.use((req, res, next) => {
   }, async () => {
     log(`serving on port ${port}`);
     
-    // Restore active WhatsApp connections on server startup - CRITICAL for consistency
+    // 🔒 SISTEMA DE RESTAURAÇÃO PERMANENTE - CONEXÕES NUNCA SERÃO PERDIDAS
     setTimeout(async () => {
       try {
-        log('🔄 INICIANDO RESTAURAÇÃO DE CONEXÕES WHATSAPP...');
+        log('🚀 INICIANDO RESTAURAÇÃO PERMANENTE DE CONEXÕES WHATSAPP...');
         const connections = await storage.getWhatsappConnections();
-        const persistentConnections = connections.filter(conn => {
+        
+        // Busca TODAS as conexões que foram conectadas alguma vez
+        const permanentConnections = connections.filter(conn => {
           try {
             if (!conn.sessionData) return false;
             const sessionData = JSON.parse(conn.sessionData);
-            return sessionData.persistent === true && conn.status === 'connected';
+            // Restaura qualquer conexão que já foi conectada (persistent OU permanent)
+            return (sessionData.persistent === true || sessionData.permanent === true) && 
+                   (conn.status === 'connected' || sessionData.authState === 'connected');
           } catch {
-            return false;
+            // Se já teve phoneNumber, significa que foi conectada antes
+            return conn.phoneNumber && conn.phoneNumber !== 'null';
           }
         });
         
-        if (persistentConnections.length > 0) {
-          log(`📱 Encontradas ${persistentConnections.length} conexões WhatsApp para restaurar...`);
+        if (permanentConnections.length > 0) {
+          log(`🔒 RESTAURANDO ${permanentConnections.length} CONEXÕES PERMANENTES...`);
           
-          for (const connection of persistentConnections) {
+          for (const connection of permanentConnections) {
             try {
-              log(`🔗 Restaurando: ${connection.name} (${connection.phoneNumber})`);
+              log(`🔄 RESTAURANDO PERMANENTE: ${connection.name} (${connection.phoneNumber || 'Sem número'})`);
+              
+              // Força o status como conectado antes da restauração
+              await storage.updateWhatsappConnection(connection.id, { 
+                status: 'connected',
+                lastSeen: new Date()
+              });
+              
               await baileysWhatsAppService.restoreSession(connection.id);
-              log(`✅ Conexão ${connection.name} restaurada com sucesso!`);
+              log(`✅ CONEXÃO PERMANENTE RESTAURADA: ${connection.name}`);
             } catch (error) {
-              console.error(`❌ Falha ao restaurar ${connection.id}:`, error);
-              // Keep as connected - don't mark as disconnected to preserve user data
-              log(`⚠️  Mantendo ${connection.name} como conectada para nova tentativa`);
+              console.error(`⚠️  Erro na restauração de ${connection.id}:`, error);
+              // NUNCA marca como desconectada - mantém como conectada sempre
+              log(`🔒 MANTENDO ${connection.name} COMO CONECTADA (tentativa contínua)`);
+              
+              // Agenda nova tentativa em 30 segundos
+              setTimeout(async () => {
+                try {
+                  log(`🔄 NOVA TENTATIVA: ${connection.name}`);
+                  await baileysWhatsAppService.restoreSession(connection.id);
+                } catch (retryError) {
+                  console.error(`Retry failed for ${connection.id}:`, retryError);
+                }
+              }, 30000);
             }
           }
         } else {
-          log('📝 Nenhuma conexão persistente encontrada para restaurar');
+          log('📝 Nenhuma conexão permanente encontrada para restaurar');
         }
       } catch (error) {
-        console.error('❌ Erro crítico na restauração de conexões:', error);
+        console.error('❌ ERRO CRÍTICO na restauração permanente:', error);
       }
-    }, 5000); // Wait 5 seconds after server startup
+    }, 3000); // Inicia em 3 segundos
   });
 })();

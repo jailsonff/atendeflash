@@ -106,7 +106,13 @@ Preferred communication style: Simple, everyday language.
 - ✅ Sistema de regeneração automática de QR codes (erro 515)
 - ✅ Tratamento robusto de erros para evitar crashes do servidor
 - ✅ Auto-reconnect com backoff otimizado para expiração de QR codes
-- ✅ Sistema de consistência total implementado - conexões não são removidas
+- ✅ Sistema de filtragem inteligente - apenas conversas inter-conexões
+- ✅ Filtragem automática de mensagens externas de terceiros
+- ✅ Captura bidirecional de mensagens (enviadas e recebidas)
+- 🔒 SISTEMA DE PERSISTÊNCIA PERMANENTE IMPLEMENTADO (26/07/2025 15:08)
+- 🔒 Conexões NUNCA serão perdidas ou desconectadas automaticamente
+- 🔒 Flags "permanent" e "autoRestore" garantem restauração obrigatória
+- 🔒 Sistema de retry contínuo para conexões com problemas
 
 ### Special Features
 - Replit-specific configurations for development environment

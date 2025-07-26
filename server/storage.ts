@@ -197,4 +197,166 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+// Import database and create DatabaseStorage
+import { db } from "./db";
+import { 
+  whatsappConnections, 
+  messages, 
+  aiAgents, 
+  chatgptConfig 
+} from "@shared/schema";
+import { eq, desc, and, or } from "drizzle-orm";
+
+export class DatabaseStorage implements IStorage {
+  // WhatsApp Connections
+  async getWhatsappConnections(): Promise<WhatsappConnection[]> {
+    return await db.select().from(whatsappConnections).orderBy(desc(whatsappConnections.createdAt));
+  }
+
+  async getWhatsappConnection(id: string): Promise<WhatsappConnection | undefined> {
+    const [connection] = await db.select().from(whatsappConnections).where(eq(whatsappConnections.id, id));
+    return connection || undefined;
+  }
+
+  async getWhatsappConnectionByPhone(phoneNumber: string): Promise<WhatsappConnection | undefined> {
+    const [connection] = await db.select().from(whatsappConnections).where(eq(whatsappConnections.phoneNumber, phoneNumber));
+    return connection || undefined;
+  }
+
+  async createWhatsappConnection(connection: InsertWhatsappConnection): Promise<WhatsappConnection> {
+    const [newConnection] = await db
+      .insert(whatsappConnections)
+      .values({
+        ...connection,
+        id: randomUUID(),
+        status: connection.status || 'disconnected',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      })
+      .returning();
+    return newConnection;
+  }
+
+  async updateWhatsappConnection(id: string, updates: Partial<WhatsappConnection>): Promise<WhatsappConnection> {
+    const [updatedConnection] = await db
+      .update(whatsappConnections)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(whatsappConnections.id, id))
+      .returning();
+    return updatedConnection;
+  }
+
+  async deleteWhatsappConnection(id: string): Promise<void> {
+    await db.delete(whatsappConnections).where(eq(whatsappConnections.id, id));
+  }
+
+  // Messages
+  async getMessages(): Promise<Message[]> {
+    return await db.select().from(messages).orderBy(desc(messages.timestamp));
+  }
+
+  async getMessagesByConnection(connectionId: string): Promise<Message[]> {
+    return await db.select().from(messages)
+      .where(or(
+        eq(messages.fromConnectionId, connectionId),
+        eq(messages.toConnectionId, connectionId)
+      ))
+      .orderBy(desc(messages.timestamp));
+  }
+
+  async getConversation(fromId: string, toId: string): Promise<Message[]> {
+    return await db.select().from(messages)
+      .where(
+        or(
+          and(eq(messages.fromConnectionId, fromId), eq(messages.toConnectionId, toId)),
+          and(eq(messages.fromConnectionId, toId), eq(messages.toConnectionId, fromId))
+        )
+      )
+      .orderBy(desc(messages.timestamp));
+  }
+
+  async createMessage(message: InsertMessage): Promise<Message> {
+    const [newMessage] = await db
+      .insert(messages)
+      .values({
+        ...message,
+        id: randomUUID(),
+        timestamp: new Date()
+      })
+      .returning();
+    return newMessage;
+  }
+
+  // AI Agents
+  async getAiAgents(): Promise<AiAgent[]> {
+    return await db.select().from(aiAgents).orderBy(desc(aiAgents.createdAt));
+  }
+
+  async getAiAgent(id: string): Promise<AiAgent | undefined> {
+    const [agent] = await db.select().from(aiAgents).where(eq(aiAgents.id, id));
+    return agent || undefined;
+  }
+
+  async getAiAgentByConnection(connectionId: string): Promise<AiAgent | undefined> {
+    const [agent] = await db.select().from(aiAgents).where(eq(aiAgents.connectionId, connectionId));
+    return agent || undefined;
+  }
+
+  async createAiAgent(agent: InsertAiAgent): Promise<AiAgent> {
+    const [newAgent] = await db
+      .insert(aiAgents)
+      .values({
+        ...agent,
+        id: randomUUID(),
+        createdAt: new Date(),
+        updatedAt: new Date()
+      })
+      .returning();
+    return newAgent;
+  }
+
+  async updateAiAgent(id: string, updates: Partial<AiAgent>): Promise<AiAgent> {
+    const [updatedAgent] = await db
+      .update(aiAgents)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(aiAgents.id, id))
+      .returning();
+    return updatedAgent;
+  }
+
+  async deleteAiAgent(id: string): Promise<void> {
+    await db.delete(aiAgents).where(eq(aiAgents.id, id));
+  }
+
+  // ChatGPT Config
+  async getChatgptConfig(): Promise<ChatgptConfig | undefined> {
+    const [config] = await db.select().from(chatgptConfig).limit(1);
+    return config || undefined;
+  }
+
+  async createOrUpdateChatgptConfig(config: InsertChatgptConfig): Promise<ChatgptConfig> {
+    const existing = await this.getChatgptConfig();
+    
+    if (existing) {
+      const [updatedConfig] = await db
+        .update(chatgptConfig)
+        .set({ ...config, updatedAt: new Date() })
+        .where(eq(chatgptConfig.id, existing.id))
+        .returning();
+      return updatedConfig;
+    } else {
+      const [newConfig] = await db
+        .insert(chatgptConfig)
+        .values({
+          ...config,
+          id: randomUUID(),
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+        .returning();
+      return newConfig;
+    }
+  }
+}
+
+export const storage = new DatabaseStorage();
