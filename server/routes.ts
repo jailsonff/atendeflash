@@ -430,7 +430,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/chatgpt/config", async (_req, res) => {
     try {
       const config = await storage.getChatgptConfig();
-      if (!config) {
+      
+      // Check if OpenAI API key exists in environment
+      const hasApiKey = !!process.env.OPENAI_API_KEY;
+      console.log('🔑 OpenAI API Key available:', hasApiKey);
+      console.log('📋 Existing config:', !!config);
+      
+      if (!config && hasApiKey) {
+        // Create default config if we have API key but no config
+        const defaultConfig = {
+          apiKey: process.env.OPENAI_API_KEY!,
+          responseTime: 2000,
+          autoResponse: true,
+          keywordTriggers: []
+        };
+        
+        const newConfig = await storage.createOrUpdateChatgptConfig(defaultConfig);
+        const safeConfig = { ...newConfig, apiKey: '***masked***' };
+        return res.json({ ...safeConfig, configured: true });
+      }
+      
+      if (!config || !hasApiKey) {
         return res.json({ configured: false });
       }
       
