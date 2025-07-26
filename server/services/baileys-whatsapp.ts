@@ -23,6 +23,7 @@ export interface BaileysSession {
 export class BaileysWhatsAppService extends EventEmitter {
   private sessions: Map<string, BaileysSession> = new Map();
   private storage: any;
+  private reconnectTimeouts: Map<string, NodeJS.Timeout> = new Map();
 
   constructor() {
     super();
@@ -34,6 +35,13 @@ export class BaileysWhatsAppService extends EventEmitter {
 
   async generateQRCode(connectionId: string): Promise<string> {
     console.log(`Creating Baileys WhatsApp session for connection: ${connectionId}`);
+    
+    // Check if session already exists and is connecting
+    const existingSession = this.sessions.get(connectionId);
+    if (existingSession && existingSession.socket) {
+      console.log(`Session already exists for ${connectionId}, skipping duplicate connection`);
+      return existingSession.qrCode || '';
+    }
     
     // Create session directory
     const sessionDir = path.join(process.cwd(), '.baileys_auth', `session_${connectionId}`);
@@ -85,14 +93,23 @@ export class BaileysWhatsAppService extends EventEmitter {
             this.emit('disconnected', { connectionId });
             
             if (shouldReconnect) {
-              // Auto reconnect with backoff
-              setTimeout(() => {
+              // Clear any existing timeout
+              if (this.reconnectTimeouts.has(connectionId)) {
+                clearTimeout(this.reconnectTimeouts.get(connectionId)!);
+              }
+              
+              // Auto reconnect with backoff - only if not already reconnecting
+              const timeout = setTimeout(() => {
+                this.reconnectTimeouts.delete(connectionId);
                 try {
+                  console.log(`Attempting reconnect for ${connectionId}`);
                   this.generateQRCode(connectionId);
                 } catch (reconnectError) {
                   console.error(`Failed to reconnect ${connectionId}:`, reconnectError);
                 }
-              }, 5000);
+              }, 10000); // Increase delay to 10 seconds
+              
+              this.reconnectTimeouts.set(connectionId, timeout);
             }
           } else if (connection === 'open') {
             console.log(`Baileys WhatsApp connected for ${connectionId}`);
