@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { Server as SocketIOServer } from "socket.io";
 import { storage } from "./storage";
-import { simpleWhatsAppService } from "./services/simple-whatsapp";
+import { baileysWhatsAppService } from "./services/baileys-whatsapp";
 import { openaiService } from "./services/openai";
 import { 
   insertWhatsappConnectionSchema,
@@ -41,12 +41,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.log(`Broadcast ${event}:`, data);
   }
 
-  // Simple WhatsApp service event listeners
-  simpleWhatsAppService.on('qr', (data) => {
+  // Baileys WhatsApp service event listeners
+  baileysWhatsAppService.on('qr', (data) => {
     broadcast('qr_generated', data);
   });
 
-  simpleWhatsAppService.on('connected', async (data) => {
+  baileysWhatsAppService.on('connected', async (data) => {
     await storage.updateWhatsappConnection(data.connectionId, { 
       status: 'connected',
       phoneNumber: data.phoneNumber, // Save the phone number when connected
@@ -59,16 +59,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
-  simpleWhatsAppService.on('disconnected', async (data) => {
+  baileysWhatsAppService.on('disconnected', async (data) => {
     await storage.updateWhatsappConnection(data.connectionId, { status: 'disconnected' });
     broadcast('connection_status', { connectionId: data.connectionId, status: 'disconnected' });
   });
 
-  simpleWhatsAppService.on('message_sent', (data) => {
+  baileysWhatsAppService.on('message_sent', (data) => {
     broadcast('message_sent', data);
   });
 
-  simpleWhatsAppService.on('message_received', async (data) => {
+  baileysWhatsAppService.on('message_received', async (data) => {
     console.log('Mensagem recebida:', data);
     try {
       // Store received message in database
@@ -96,7 +96,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  simpleWhatsAppService.on('error', async (data) => {
+  baileysWhatsAppService.on('error', async (data) => {
     console.error('Erro no WhatsApp:', data);
     try {
       await storage.updateWhatsappConnection(data.connectionId, { 
@@ -172,7 +172,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/connections/:id", async (req, res) => {
     try {
       const { id } = req.params;
-      await simpleWhatsAppService.disconnectWhatsApp(id);
+      await baileysWhatsAppService.disconnectWhatsApp(id);
       await storage.deleteWhatsappConnection(id);
       broadcast('connection_deleted', { id });
       res.json({ success: true });
@@ -190,7 +190,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Generate QR code and start connection process
-      const qrCode = await simpleWhatsAppService.generateQRCode(id);
+      const qrCode = await baileysWhatsAppService.generateQRCode(id);
       await storage.updateWhatsappConnection(id, { 
         qrCode,
         status: 'connecting'
@@ -206,7 +206,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/connections/:id/disconnect", async (req, res) => {
     try {
       const { id } = req.params;
-      await simpleWhatsAppService.disconnectWhatsApp(id);
+      await baileysWhatsAppService.disconnectWhatsApp(id);
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ message: "Erro ao desconectar WhatsApp: " + (error as Error).message });
@@ -241,8 +241,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Send via WhatsApp if connections are active
       if (messageData.fromConnectionId && messageData.toConnectionId) {
         const toConnection = await storage.getWhatsappConnection(messageData.toConnectionId);
-        if (toConnection && simpleWhatsAppService.isConnected(messageData.fromConnectionId)) {
-          await simpleWhatsAppService.sendMessage(
+        if (toConnection && baileysWhatsAppService.isConnected(messageData.fromConnectionId)) {
+          await baileysWhatsAppService.sendMessage(
             messageData.fromConnectionId,
             toConnection.phoneNumber,
             messageData.content,

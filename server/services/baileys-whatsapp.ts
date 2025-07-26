@@ -1,5 +1,8 @@
 import { EventEmitter } from 'events';
 import { Boom } from '@hapi/boom';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 const { 
   makeWASocket,
   DisconnectReason, 
