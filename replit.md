@@ -155,6 +155,11 @@ Preferred communication style: Simple, everyday language.
 - ✅ Sistema agora detecta mensagens de agentes IA automaticamente
 - ✅ Mensagens de IA marcadas como isFromAgent: true para evitar loops
 - ✅ Agentes agora respondem apenas a mensagens humanas, não a outros agentes
+- 🔧 PROBLEMA PERSONAS CORRIGIDO (26/07/2025 17:07)
+- ✅ Agente DENTISTA criado e associado à conexão JAILSON
+- ✅ Agente VISITANTE ativado e associado à conexão FELIX NOVO
+- ✅ Personas específicas funcionando: DENTISTA profissional, VISITANTE medroso
+- ✅ Sistema de cache evitando loops funcionando perfeitamente
 
 ### Special Features
 - Replit-specific configurations for development environment
