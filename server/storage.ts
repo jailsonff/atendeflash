@@ -24,6 +24,7 @@ export interface IStorage {
   getMessagesByConnection(connectionId: string): Promise<Message[]>;
   getConversation(fromId: string, toId: string): Promise<Message[]>;
   createMessage(message: InsertMessage): Promise<Message>;
+  deleteMessage(id: string): Promise<void>;
 
   // AI Agents
   getAiAgents(): Promise<AiAgent[]>;
@@ -129,6 +130,10 @@ export class MemStorage implements IStorage {
     };
     this.messages.set(id, newMessage);
     return newMessage;
+  }
+
+  async deleteMessage(id: string): Promise<void> {
+    this.messages.delete(id);
   }
 
   async getAiAgents(): Promise<AiAgent[]> {
@@ -298,6 +303,10 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return newMessage;
+  }
+
+  async deleteMessage(id: string): Promise<void> {
+    await db.delete(messages).where(eq(messages.id, id));
   }
 
   // AI Agents

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useSocket } from "@/hooks/useSocket";
@@ -86,6 +87,27 @@ export default function Conversas() {
     onError: (error) => {
       toast({
         title: "Erro ao enviar mensagem",
+        description: (error as Error).message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const clearConversationMutation = useMutation({
+    mutationFn: async (connectionId: string) => {
+      const response = await apiRequest("DELETE", `/api/conversations/${connectionId}`);
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/messages"] });
+      toast({
+        title: "Conversa limpa",
+        description: `${data.deletedCount} mensagens foram removidas.`,
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro ao limpar conversa",
         description: (error as Error).message,
         variant: "destructive",
       });
@@ -210,7 +232,7 @@ export default function Conversas() {
                           </p>
                         )}
                       </div>
-                      <div className="text-right">
+                      <div className="text-right flex flex-col items-end space-y-1">
                         {conversation.lastMessageTime && (
                           <p className="text-xs text-gray-400">
                             {new Date(conversation.lastMessageTime).toLocaleTimeString('pt-BR', {
@@ -219,11 +241,25 @@ export default function Conversas() {
                             })}
                           </p>
                         )}
-                        {conversation.unreadCount > 0 && (
-                          <Badge className="bg-[hsl(328,100%,54%)] text-white text-xs">
-                            {conversation.unreadCount}
-                          </Badge>
-                        )}
+                        <div className="flex items-center space-x-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              clearConversationMutation.mutate(conversation.connectionId);
+                            }}
+                            disabled={clearConversationMutation.isPending}
+                            className="h-6 w-6 p-0 text-gray-400 hover:text-red-400 hover:bg-red-400/10"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                          {conversation.unreadCount > 0 && (
+                            <Badge className="bg-[hsl(328,100%,54%)] text-white text-xs">
+                              {conversation.unreadCount}
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>

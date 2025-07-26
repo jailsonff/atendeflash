@@ -377,6 +377,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Clear conversation between two connections
+  app.delete("/api/conversations/:connectionId", async (req, res) => {
+    try {
+      const { connectionId } = req.params;
+      
+      // Get all messages where this connection is either sender or receiver
+      const allMessages = await storage.getMessages();
+      const messagesToDelete = allMessages.filter(msg => 
+        msg.fromConnectionId === connectionId || msg.toConnectionId === connectionId
+      );
+      
+      // Delete each message
+      for (const message of messagesToDelete) {
+        await storage.deleteMessage(message.id);
+      }
+      
+      console.log(`🗑️ CLEARED CONVERSATION: Deleted ${messagesToDelete.length} messages for connection ${connectionId}`);
+      
+      broadcast('conversation_cleared', { connectionId, deletedCount: messagesToDelete.length });
+      res.json({ success: true, deletedCount: messagesToDelete.length });
+    } catch (error) {
+      console.error('Error clearing conversation:', error);
+      res.status(500).json({ message: "Erro ao limpar conversa: " + (error as Error).message });
+    }
+  });
+
   app.post("/api/messages", async (req, res) => {
     try {
       const messageData = insertMessageSchema.parse(req.body);

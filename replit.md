@@ -160,6 +160,13 @@ Preferred communication style: Simple, everyday language.
 - ✅ Agente VISITANTE ativado e associado à conexão FELIX NOVO
 - ✅ Personas específicas funcionando: DENTISTA profissional, VISITANTE medroso
 - ✅ Sistema de cache evitando loops funcionando perfeitamente
+- 🗑️ BOTÃO LIMPAR CONVERSAS IMPLEMENTADO (26/07/2025 17:13)
+- ✅ Botão de lixeira adicionado em cada conexão na interface
+- ✅ API DELETE /api/conversations/:connectionId implementada
+- ✅ Função deleteMessage adicionada ao storage
+- ✅ Sistema remove todas as mensagens de uma conexão específica
+- ✅ Interface atualiza automaticamente após limpeza
+- ✅ Toast de confirmação mostra quantas mensagens foram removidas
 
 ### Special Features
 - Replit-specific configurations for development environment
