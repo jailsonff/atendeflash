@@ -262,8 +262,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Filter to show ONLY messages between our own connections
       const interConnectionMessages = allMessages.filter(message => {
         // Show messages where BOTH sender and receiver are our connections
-        const fromIsOurConnection = connectedIds.includes(message.fromConnectionId);
-        const toIsOurConnection = connectedIds.includes(message.toConnectionId);
+        const fromIsOurConnection = message.fromConnectionId && connectedIds.includes(message.fromConnectionId);
+        const toIsOurConnection = message.toConnectionId && connectedIds.includes(message.toConnectionId);
         
         // Only show if both sides are our connections (inter-connection chat)
         return fromIsOurConnection && toIsOurConnection;
@@ -294,7 +294,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Send via WhatsApp if connections are active
       if (messageData.fromConnectionId && messageData.toConnectionId) {
         const toConnection = await storage.getWhatsappConnection(messageData.toConnectionId);
-        if (toConnection && baileysWhatsAppService.isConnected(messageData.fromConnectionId)) {
+        if (toConnection && toConnection.phoneNumber && baileysWhatsAppService.isConnected(messageData.fromConnectionId)) {
           await baileysWhatsAppService.sendMessage(
             messageData.fromConnectionId,
             toConnection.phoneNumber,
@@ -339,8 +339,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Send AI response via WhatsApp
             if (messageData.fromConnectionId) {
               const fromConnection = await storage.getWhatsappConnection(messageData.fromConnectionId);
-              if (fromConnection && whatsappService.isConnected(messageData.toConnectionId)) {
-                await whatsappService.sendMessage(
+              if (fromConnection && fromConnection.phoneNumber && baileysWhatsAppService.isConnected(messageData.toConnectionId)) {
+                await baileysWhatsAppService.sendMessage(
                   messageData.toConnectionId,
                   fromConnection.phoneNumber,
                   response.message

@@ -230,6 +230,7 @@ export class DatabaseStorage implements IStorage {
         ...connection,
         id: randomUUID(),
         status: connection.status || 'disconnected',
+        phoneNumber: connection.phoneNumber || null,
         createdAt: new Date(),
         updatedAt: new Date()
       })

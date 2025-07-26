@@ -68,7 +68,7 @@ export default function Conversas() {
       const response = await apiRequest("POST", "/api/messages", {
         content: data.content,
         toConnectionId: data.toConnectionId,
-        fromConnectionId: "system", // System connection
+        fromConnectionId: selectedConnectionId, // Send from selected connection
         messageType: "text",
         isFromAgent: false,
       });
@@ -340,7 +340,7 @@ export default function Conversas() {
                     onChange={(e) => setNewMessage(e.target.value)}
                     onKeyPress={handleKeyPress}
                     placeholder="Digite sua mensagem..."
-                    className="flex-1 bg-dark-tertiary border-gray-600 text-white"
+                    className="flex-1 bg-white border-gray-600 text-black placeholder:text-gray-500"
                     disabled={sendMessageMutation.isPending}
                   />
                   <Button
