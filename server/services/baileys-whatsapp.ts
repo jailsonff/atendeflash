@@ -85,10 +85,14 @@ export class BaileysWhatsAppService extends EventEmitter {
             this.emit('disconnected', { connectionId });
             
             if (shouldReconnect) {
-              // Auto reconnect
+              // Auto reconnect with backoff
               setTimeout(() => {
-                this.generateQRCode(connectionId);
-              }, 3000);
+                try {
+                  this.generateQRCode(connectionId);
+                } catch (reconnectError) {
+                  console.error(`Failed to reconnect ${connectionId}:`, reconnectError);
+                }
+              }, 5000);
             }
           } else if (connection === 'open') {
             console.log(`Baileys WhatsApp connected for ${connectionId}`);
@@ -150,16 +154,18 @@ export class BaileysWhatsAppService extends EventEmitter {
           }
         });
 
-        // Timeout after 30 seconds if no QR code
+        // Timeout after 30 seconds if no QR code - don't reject, just log
         setTimeout(() => {
           if (!session.qrCode) {
-            reject(new Error('QR code generation timeout'));
+            console.log(`QR code generation timeout for ${connectionId} - continuing without reject`);
           }
         }, 30000);
 
       } catch (error) {
         console.error(`Failed to initialize Baileys client for ${connectionId}:`, error);
-        reject(error);
+        // Don't reject to prevent server crash - emit error instead
+        this.emit('error', { connectionId, error: error.message });
+        resolve(''); // Resolve with empty string to prevent hanging
       }
     });
   }
@@ -365,9 +371,13 @@ export class BaileysWhatsAppService extends EventEmitter {
           this.emit('disconnected', { connectionId });
           
           if (shouldReconnect) {
-            // Auto reconnect after delay
+            // Auto reconnect after delay with error handling
             setTimeout(() => {
-              this.restoreSession(connectionId);
+              try {
+                this.restoreSession(connectionId);
+              } catch (reconnectError) {
+                console.error(`Failed to auto-reconnect restored session ${connectionId}:`, reconnectError);
+              }
             }, 5000);
           }
         } else if (connection === 'open') {

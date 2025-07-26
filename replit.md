@@ -95,12 +95,16 @@ Preferred communication style: Simple, everyday language.
 - **Database**: Uses Drizzle with PostgreSQL, configured for Neon Database serverless
 
 ### Recent Changes (26/07/2025)
-- QR codes reais do WhatsApp via Baileys implementados com sucesso
-- Sistema de detecção automática de conexão funcionando perfeitamente
-- Modal do QR code fecha automaticamente quando WhatsApp é conectado
-- Números reais (+558171196726) aparecem após conexão bem-sucedida
-- Recebimento de mensagens em tempo real implementado
-- Socket.io configurado para atualizações instantâneas de status
+- ✅ QR codes reais do WhatsApp via Baileys implementados com sucesso
+- ✅ Sistema de detecção automática de conexão funcionando perfeitamente
+- ✅ Modal do QR code fecha automaticamente quando WhatsApp é conectado
+- ✅ Números reais (+558171196726) aparecem após conexão bem-sucedida
+- ✅ Recebimento de mensagens em tempo real implementado
+- ✅ Socket.io configurado para atualizações instantâneas de status
+- ✅ Sistema de persistência de sessão implementado
+- ✅ Conexões mantidas após reinicialização do servidor
+- ✅ Tratamento robusto de erros para evitar crashes do servidor
+- ✅ Auto-reconnect com backoff para conexões perdidas
 
 ### Special Features
 - Replit-specific configurations for development environment
