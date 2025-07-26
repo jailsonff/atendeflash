@@ -291,21 +291,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const messageData = insertMessageSchema.parse(req.body);
       const message = await storage.createMessage(messageData);
 
-      // Send via WhatsApp if connections are active (async - don't block response)
+      // Send via WhatsApp API - REAL SENDING IMPLEMENTATION
       if (messageData.fromConnectionId && messageData.toConnectionId) {
+        const fromConnection = await storage.getWhatsappConnection(messageData.fromConnectionId);
         const toConnection = await storage.getWhatsappConnection(messageData.toConnectionId);
-        if (toConnection && toConnection.phoneNumber && baileysWhatsAppService.isConnected(messageData.fromConnectionId)) {
-          // Send WhatsApp message asynchronously to avoid blocking the API response
+        
+        console.log(`🔍 CHECKING CONNECTIONS:`, {
+          from: fromConnection?.name,
+          to: toConnection?.name,
+          fromReady: baileysWhatsAppService.isConnected(messageData.fromConnectionId),
+          toPhone: toConnection?.phoneNumber
+        });
+        
+        if (fromConnection && toConnection && toConnection.phoneNumber && 
+            baileysWhatsAppService.isConnected(messageData.fromConnectionId)) {
+          
+          console.log(`🚀 ATTEMPTING WHATSAPP SEND: ${fromConnection.name} → ${toConnection.name}`);
+          
+          // Send WhatsApp message asynchronously
           baileysWhatsAppService.sendMessage(
             messageData.fromConnectionId,
             toConnection.phoneNumber,
             messageData.content,
-            (messageData.messageType === 'emoji' ? 'text' : messageData.messageType) || 'text'
+            'text'
           ).then(() => {
-            console.log(`✅ Mensagem enviada via WhatsApp: ${messageData.content}`);
+            console.log(`✅ WHATSAPP SUCCESS: "${messageData.content}" sent to ${toConnection.phoneNumber}`);
           }).catch((error) => {
-            console.log(`⚠️ WhatsApp envio falhou (mensagem já salva): ${error.message}`);
+            console.log(`❌ WHATSAPP FAILED: ${error.message}`);
           });
+        } else {
+          console.log(`⚠️ SKIP WHATSAPP: Missing requirements`);
         }
       }
 

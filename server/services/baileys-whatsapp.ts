@@ -290,44 +290,64 @@ export class BaileysWhatsAppService extends EventEmitter {
   }
 
   async sendMessage(connectionId: string, to: string, message: string, type: 'text' | 'image' = 'text'): Promise<boolean> {
-    console.log(`🚀 Sending message from ${connectionId} to ${to}: ${message}`);
+    console.log(`🚀 SENDING MESSAGE: ${connectionId} → ${to}: "${message}"`);
     
     const session = this.sessions.get(connectionId);
-    if (!session || !session.socket || !session.isReady) {
-      console.log(`❌ Session not ready for ${connectionId}`);
-      throw new Error('Baileys WhatsApp connection not available');
+    if (!session || !session.socket) {
+      console.log(`❌ NO SESSION: ${connectionId}`);
+      throw new Error('Session not found');
+    }
+    
+    if (!session.isReady) {
+      console.log(`❌ SESSION NOT READY: ${connectionId}`);
+      throw new Error('Session not ready');
     }
 
     try {
-      // Clean phone number format
-      let cleanNumber = to.replace(/\D/g, ''); // Remove all non-digits
-      if (cleanNumber.startsWith('55')) {
-        // Brazilian number - ensure proper format
-        const jid = `${cleanNumber}@s.whatsapp.net`;
-        console.log(`📱 Sending to WhatsApp JID: ${jid}`);
-        
-        if (type === 'text') {
-          console.log(`📤 Attempting to send message to ${jid}...`);
-          const messageOptions = { text: message };
-          const result = await session.socket.sendMessage(jid, messageOptions);
-          console.log(`✅ Message sent successfully to ${jid}:`, result?.key?.id || 'no-key');
-        }
-      } else {
-        throw new Error(`Invalid phone number format: ${to}`);
+      // Format phone number correctly for WhatsApp
+      let cleanNumber = to.replace(/\D/g, '');
+      
+      // Ensure proper Brazilian format
+      if (!cleanNumber.startsWith('55')) {
+        cleanNumber = '55' + cleanNumber;
       }
       
-      this.emit('message_sent', {
+      const jid = `${cleanNumber}@s.whatsapp.net`;
+      console.log(`📱 FORMATTED JID: ${jid}`);
+      
+      if (type === 'text') {
+        console.log(`📤 CALLING socket.sendMessage...`);
+        
+        // Use simpler message format
+        const result = await session.socket.sendMessage(jid, { 
+          text: message 
+        });
+        
+        console.log(`✅ BAILEYS RESPONSE:`, result?.key?.id || 'sent');
+        
+        // Emit success event
+        this.emit('message_sent', {
+          connectionId,
+          to: jid,
+          message,
+          type,
+          timestamp: new Date(),
+          messageId: result?.key?.id
+        });
+        
+        return true;
+      }
+      
+      throw new Error(`Unsupported message type: ${type}`);
+      
+    } catch (error) {
+      console.error(`❌ SEND ERROR:`, {
         connectionId,
         to,
-        message,
-        type,
-        timestamp: new Date()
+        message: error.message,
+        stack: error.stack?.split('\n')[0]
       });
-
-      return true;
-    } catch (error) {
-      console.error(`❌ Failed to send message from ${connectionId} to ${to}:`, error.message);
-      throw error;
+      throw new Error(`WhatsApp send failed: ${error.message}`);
     }
   }
 
