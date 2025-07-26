@@ -117,6 +117,9 @@ Preferred communication style: Simple, everyday language.
 - ✅ Mensagens inter-conexões exibidas em tempo real
 - ✅ Sistema completo de filtragem implementado
 - ✅ Chat bidirecional JAILSON ↔ FELIX NOVO operacional
+- ✅ Campo de entrada com texto preto corrigido (26/07/2025 15:42)
+- ⚠️ Envio via interface funciona mas com timeout no WhatsApp (mensagens salvas na interface)
+- 📱 Sistema HÍBRIDO: Interface para visualização + WhatsApp real para envios
 
 ### Special Features
 - Replit-specific configurations for development environment

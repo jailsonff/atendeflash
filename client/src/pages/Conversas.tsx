@@ -373,11 +373,11 @@ export default function Conversas() {
                 </div>
                 <div className="flex justify-between items-center mt-2">
                   <p className="text-xs text-gray-400">
-                    Pressione Enter para enviar, Shift + Enter para quebrar linha
+                    Pressione Enter para enviar via WhatsApp
                   </p>
                   {selectedConnection && (
                     <p className="text-xs text-[hsl(180,100%,41%)]">
-                      Enviando como: {selectedConnection.name}
+                      Enviando de: {selectedConnection.name}
                     </p>
                   )}
                 </div>
