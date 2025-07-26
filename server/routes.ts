@@ -49,9 +49,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   whatsappService.on('connected', async (data) => {
     await storage.updateWhatsappConnection(data.connectionId, { 
       status: 'connected',
+      phoneNumber: data.phoneNumber, // Save the phone number when connected
       lastSeen: new Date()
     });
-    broadcast('connection_status', { connectionId: data.connectionId, status: 'connected' });
+    broadcast('connection_status', { 
+      connectionId: data.connectionId, 
+      status: 'connected',
+      phoneNumber: data.phoneNumber 
+    });
   });
 
   whatsappService.on('disconnected', async (data) => {
@@ -137,26 +142,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/connections", async (req, res) => {
     try {
-      const connectionData = insertWhatsappConnectionSchema.parse(req.body);
-      const connection = await storage.createWhatsappConnection(connectionData);
+      // Only require name, phoneNumber will be filled after connection
+      const connectionData = {
+        name: req.body.name,
+        phoneNumber: null, // Will be filled after WhatsApp connection
+        status: 'disconnected' as const
+      };
       
-      // Generate real WhatsApp QR code for new connection
-      try {
-        const qrCode = await whatsappService.generateQRCode(connection.id);
-        const updatedConnection = await storage.updateWhatsappConnection(connection.id, { 
-          qrCode,
-          status: 'connecting'
-        });
-        
-        broadcast('qr_generated', { connectionId: connection.id, qrCode });
-        res.json(updatedConnection);
-      } catch (error) {
-        console.error('Error generating QR code:', error);
-        const updatedConnection = await storage.updateWhatsappConnection(connection.id, { 
-          status: 'error'
-        });
-        res.json(updatedConnection);
-      }
+      const connection = await storage.createWhatsappConnection(connectionData);
+      broadcast('new_connection', connection);
+      res.json(connection);
     } catch (error) {
       res.status(400).json({ message: "Erro ao criar conexão: " + (error as Error).message });
     }
@@ -194,8 +189,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Conexão não encontrada" });
       }
 
-      await whatsappService.connectWhatsApp(id, connection.phoneNumber);
-      res.json({ success: true });
+      // Generate QR code and start connection process
+      const qrCode = await whatsappService.generateQRCode(id);
+      await storage.updateWhatsappConnection(id, { 
+        qrCode,
+        status: 'connecting'
+      });
+      
+      broadcast('qr_generated', { connectionId: id, qrCode });
+      res.json({ success: true, qrCode, connectionId: id });
     } catch (error) {
       res.status(500).json({ message: "Erro ao conectar WhatsApp: " + (error as Error).message });
     }

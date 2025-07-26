@@ -23,7 +23,7 @@ interface WhatsappConnection {
 export default function Conexoes() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [qrModalData, setQrModalData] = useState<{ connectionId: string; qrCode: string } | null>(null);
-  const [newConnection, setNewConnection] = useState({ name: "", phoneNumber: "" });
+  const [newConnection, setNewConnection] = useState({ name: "" });
   
   const { toast } = useToast();
   useSocket();
@@ -33,22 +33,18 @@ export default function Conexoes() {
   });
 
   const createConnectionMutation = useMutation({
-    mutationFn: async (data: { name: string; phoneNumber: string }) => {
+    mutationFn: async (data: { name: string }) => {
       const response = await apiRequest("POST", "/api/connections", data);
       return response.json();
     },
     onSuccess: (connection) => {
       queryClient.invalidateQueries({ queryKey: ["/api/connections"] });
       setIsCreateModalOpen(false);
-      setNewConnection({ name: "", phoneNumber: "" });
-      
-      if (connection.qrCode) {
-        setQrModalData({ connectionId: connection.id, qrCode: connection.qrCode });
-      }
+      setNewConnection({ name: "" });
       
       toast({
         title: "Conexão criada com sucesso",
-        description: "QR Code gerado. Escaneie com seu WhatsApp.",
+        description: "Use o botão 'Conectar' para gerar o QR Code.",
       });
     },
     onError: (error) => {
@@ -65,11 +61,16 @@ export default function Conexoes() {
       const response = await apiRequest("POST", `/api/connections/${connectionId}/connect`, {});
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/connections"] });
+      
+      if (data.qrCode) {
+        setQrModalData({ connectionId: data.connectionId, qrCode: data.qrCode });
+      }
+      
       toast({
-        title: "Conectando WhatsApp",
-        description: "Aguarde a confirmação da conexão.",
+        title: "QR Code gerado",
+        description: "Escaneie o QR Code com seu WhatsApp para conectar.",
       });
     },
     onError: (error) => {
@@ -189,16 +190,7 @@ export default function Conexoes() {
                     placeholder="Ex: Atendimento Principal"
                   />
                 </div>
-                <div>
-                  <Label htmlFor="phone" className="text-gray-300">Número do WhatsApp</Label>
-                  <Input
-                    id="phone"
-                    value={newConnection.phoneNumber}
-                    onChange={(e) => setNewConnection(prev => ({ ...prev, phoneNumber: e.target.value }))}
-                    className="bg-dark-tertiary border-gray-600 text-white"
-                    placeholder="Ex: +55 (11) 99999-9999"
-                  />
-                </div>
+
                 <div className="flex justify-end space-x-2">
                   <Button 
                     variant="outline" 
@@ -209,7 +201,7 @@ export default function Conexoes() {
                   </Button>
                   <Button
                     onClick={() => createConnectionMutation.mutate(newConnection)}
-                    disabled={!newConnection.name || !newConnection.phoneNumber || createConnectionMutation.isPending}
+                    disabled={!newConnection.name || createConnectionMutation.isPending}
                     className="bg-[hsl(180,100%,41%)] hover:bg-[hsl(180,100%,41%)]/80"
                   >
                     {createConnectionMutation.isPending ? "Criando..." : "Criar Conexão"}
@@ -255,7 +247,9 @@ export default function Conexoes() {
                       </div>
                       <div>
                         <CardTitle className="text-white">{connection.name}</CardTitle>
-                        <p className="text-gray-400">{connection.phoneNumber}</p>
+                        <p className="text-gray-400">
+                          {connection.phoneNumber || 'Aguardando conexão...'}
+                        </p>
                       </div>
                     </div>
                     <Badge variant={connection.status === 'connected' ? 'default' : 'secondary'}>

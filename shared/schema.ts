@@ -6,7 +6,7 @@ import { z } from "zod";
 export const whatsappConnections = pgTable("whatsapp_connections", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
-  phoneNumber: text("phone_number").notNull().unique(),
+  phoneNumber: text("phone_number"), // Now optional, filled after connection
   status: text("status", { enum: ["connecting", "connected", "disconnected", "error"] }).notNull().default("disconnected"),
   qrCode: text("qr_code"),
   sessionData: jsonb("session_data"),
