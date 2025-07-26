@@ -11,6 +11,19 @@ import {
   insertChatgptConfigSchema 
 } from "@shared/schema";
 
+// Global cache to track recent AI responses and prevent infinite loops
+const recentAiResponses = new Map<string, number>(); // message content -> timestamp
+
+// Helper function to clean old entries from cache (older than 2 minutes)
+const cleanAiResponseCache = () => {
+  const now = Date.now();
+  for (const [content, timestamp] of recentAiResponses.entries()) {
+    if (now - timestamp > 120000) { // 2 minutes
+      recentAiResponses.delete(content);
+    }
+  }
+};
+
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
 
@@ -90,13 +103,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (senderConnection && senderConnection.id !== data.connectionId) {
         // This is a message FROM one of our connections TO another
         console.log(`📨 Inter-conexão detectada: ${senderConnection.name} → ${connections.find(c => c.id === data.connectionId)?.name}`);
+        
+        // Check if this message is from an AI agent (coming back from WhatsApp)
+        // Clean old cache entries first
+        cleanAiResponseCache();
+        
+        const agentFromSender = await storage.getAiAgentByConnection(senderConnection.id);
+        
+        // Check if this exact message content was recently sent by an AI agent
+        const isAgentMessage = agentFromSender && agentFromSender.isActive && 
+          recentAiResponses.has(data.body) && 
+          (Date.now() - recentAiResponses.get(data.body)!) < 60000; // Within 1 minute
+        
+        if (isAgentMessage) {
+          console.log(`🤖 DETECTED AI MESSAGE from agent "${agentFromSender.name}" - skipping AI trigger`);
+          // Remove from cache to prevent issues
+          recentAiResponses.delete(data.body);
+        } else if (agentFromSender && agentFromSender.isActive) {
+          console.log(`👤 HUMAN MESSAGE to connection with agent "${agentFromSender.name}" - will trigger AI if sent to other connection`);
+        }
+        
         messageData = {
           fromConnectionId: senderConnection.id, // The sender connection
           toConnectionId: data.connectionId,     // The receiver connection
           content: data.body,
           messageType: 'text' as const,
-          isFromAgent: false,
-          agentId: null
+          isFromAgent: isAgentMessage, // Mark as AI message if from an agent connection
+          agentId: isAgentMessage ? agentFromSender.id : null
         };
       } else {
         // Skip external messages and duplicates - we only want inter-connection messages
@@ -112,6 +145,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       broadcast('message_received', message);
       
       // Check for AI agent response (same logic as POST /api/messages)
+      // IMPORTANT: Only trigger AI agents for human messages, NOT for AI-generated messages
       if (messageData.toConnectionId && !messageData.isFromAgent) {
         const agent = await storage.getAiAgentByConnection(messageData.toConnectionId);
         if (agent && agent.isActive) {
@@ -137,15 +171,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 conversationHistory.slice(-10).map(m => m.content)
               );
 
-              // Create AI response message
+              // Create AI response message - WEBSOCKET VERSION
               const aiMessage = await storage.createMessage({
                 fromConnectionId: messageData.toConnectionId,
                 toConnectionId: messageData.fromConnectionId,
                 content: response.message,
                 messageType: 'text',
-                isFromAgent: true,
+                isFromAgent: true, // CRITICAL: Mark as AI message to prevent infinite loops
                 agentId: agent.id
               });
+
+              // CRITICAL: Add to cache to prevent infinite loops when message comes back from WhatsApp
+              recentAiResponses.set(response.message, Date.now());
+              console.log(`🔒 CACHE: Added AI response to loop prevention cache: "${response.message.slice(0, 50)}..."`);;
 
               // Update agent message count
               await storage.updateAiAgent(agent.id, {
@@ -401,15 +439,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 conversationHistory.slice(-10).map(m => m.content)
               );
 
-              // Create AI response message
+              // Create AI response message - API VERSION
               const aiMessage = await storage.createMessage({
                 fromConnectionId: messageData.toConnectionId,
                 toConnectionId: messageData.fromConnectionId,
                 content: response.message,
                 messageType: 'text',
-                isFromAgent: true,
+                isFromAgent: true, // CRITICAL: Mark as AI message to prevent infinite loops
                 agentId: agent.id
               });
+
+              // CRITICAL: Add to cache to prevent infinite loops when message comes back from WhatsApp
+              recentAiResponses.set(response.message, Date.now());
+              console.log(`🔒 CACHE: Added AI response to loop prevention cache: "${response.message.slice(0, 50)}..."`);;
 
               // Update agent message count
               await storage.updateAiAgent(agent.id, {

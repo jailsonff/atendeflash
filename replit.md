@@ -150,6 +150,11 @@ Preferred communication style: Simple, everyday language.
 - ✅ Sistema agora usa tempo individual de cada agente ao invés do global
 - ✅ Cards dos agentes mostram tempo configurado individualmente
 - ✅ Lógica atualizada: WebSocket e API usam agent.responseTime
+- 🔄 LOOP INFINITO CORRIGIDO (26/07/2025 16:57)
+- ✅ Problema identificado: Respostas de agentes IA eram processadas novamente
+- ✅ Sistema agora detecta mensagens de agentes IA automaticamente
+- ✅ Mensagens de IA marcadas como isFromAgent: true para evitar loops
+- ✅ Agentes agora respondem apenas a mensagens humanas, não a outros agentes
 
 ### Special Features
 - Replit-specific configurations for development environment
