@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useSocket } from "@/hooks/useSocket";
+import QRCode from 'qrcode';
 
 interface WhatsappConnection {
   id: string;
@@ -18,6 +19,57 @@ interface WhatsappConnection {
   qrCode?: string;
   lastSeen?: string;
   createdAt: string;
+}
+
+// QR Code Display Component
+function QRCodeDisplay({ qrData }: { qrData: string }) {
+  const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
+
+  useEffect(() => {
+    const generateQRCode = async () => {
+      try {
+        // Decode base64 data to get original string
+        const decodedData = atob(qrData);
+        
+        // Generate QR code image
+        const qrCodeDataURL = await QRCode.toDataURL(decodedData, {
+          width: 256,
+          margin: 2,
+          color: {
+            dark: '#000000',
+            light: '#FFFFFF'
+          }
+        });
+        
+        setQrCodeUrl(qrCodeDataURL);
+      } catch (error) {
+        console.error('Erro ao gerar QR Code:', error);
+      }
+    };
+
+    if (qrData) {
+      generateQRCode();
+    }
+  }, [qrData]);
+
+  if (!qrCodeUrl) {
+    return (
+      <div className="flex items-center justify-center h-64 bg-white rounded-lg">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center space-y-4">
+      <div className="bg-white p-4 rounded-lg">
+        <img src={qrCodeUrl} alt="QR Code WhatsApp" className="w-64 h-64" />
+      </div>
+      <p className="text-sm text-gray-400 text-center">
+        Escaneie este QR Code com seu WhatsApp para conectar
+      </p>
+    </div>
+  );
 }
 
 export default function Conexoes() {
@@ -334,15 +386,7 @@ export default function Conexoes() {
               </DialogTitle>
             </DialogHeader>
             <div className="text-center">
-              <p className="text-gray-400 text-sm mb-6">Escaneie o QR Code com seu WhatsApp</p>
-              
-              <div className="bg-white rounded-lg p-4 mb-6 inline-block">
-                <img 
-                  src={qrModalData.qrCode} 
-                  alt="QR Code" 
-                  className="w-48 h-48 rounded-lg"
-                />
-              </div>
+              <QRCodeDisplay qrData={qrModalData.qrCode} />
 
               <div className="flex space-x-3">
                 <Button 
