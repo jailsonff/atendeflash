@@ -14,12 +14,25 @@ import {
 // Global cache to track recent AI responses and prevent infinite loops
 const recentAiResponses = new Map<string, number>(); // message content -> timestamp
 
+// Global cache to track messages sent via API to prevent duplicates when they return from WhatsApp
+const sentMessageCache = new Map<string, { timestamp: number; fromId: string; toId: string }>(); // message content -> metadata
+
 // Helper function to clean old entries from cache (older than 2 minutes)
 const cleanAiResponseCache = () => {
   const now = Date.now();
   for (const [content, timestamp] of recentAiResponses.entries()) {
     if (now - timestamp > 120000) { // 2 minutes
       recentAiResponses.delete(content);
+    }
+  }
+};
+
+// Helper function to clean old entries from sent message cache (older than 1 minute)
+const cleanSentMessageCache = () => {
+  const now = Date.now();
+  for (const [content, data] of sentMessageCache.entries()) {
+    if (now - data.timestamp > 60000) { // 1 minute
+      sentMessageCache.delete(content);
     }
   }
 };
@@ -103,6 +116,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (senderConnection && senderConnection.id !== data.connectionId) {
         // This is a message FROM one of our connections TO another
         console.log(`📨 Inter-conexão detectada: ${senderConnection.name} → ${connections.find(c => c.id === data.connectionId)?.name}`);
+        
+        // 🔒 CHECK FOR DUPLICATE MESSAGE - Skip if this message was sent via API
+        cleanSentMessageCache(); // Clean old entries first
+        const cachedMessage = sentMessageCache.get(data.body);
+        if (cachedMessage && 
+            cachedMessage.fromId === senderConnection.id && 
+            cachedMessage.toId === data.connectionId &&
+            (Date.now() - cachedMessage.timestamp) < 60000) { // Within 1 minute
+          
+          console.log(`🔒 SKIP DUPLICATE: Message "${data.body.slice(0, 50)}..." was sent via API, ignoring WhatsApp duplicate`);
+          sentMessageCache.delete(data.body); // Remove from cache to free memory
+          return;
+        }
         
         // Check if this message is from an AI agent (coming back from WhatsApp)
         // Clean old cache entries first
@@ -426,6 +452,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const messageData = insertMessageSchema.parse(req.body);
       const message = await storage.createMessage(messageData);
+
+      // 🔒 ADD MESSAGE TO CACHE - Prevent duplicate when it returns from WhatsApp
+      cleanSentMessageCache(); // Clean old entries first
+      sentMessageCache.set(messageData.content, {
+        timestamp: Date.now(),
+        fromId: messageData.fromConnectionId || '',
+        toId: messageData.toConnectionId || ''
+      });
+      console.log(`🔒 CACHE: Added API message to deduplication cache: "${messageData.content.slice(0, 50)}..."`);
 
       // Send via WhatsApp API - REAL SENDING IMPLEMENTATION
       if (messageData.fromConnectionId && messageData.toConnectionId) {
