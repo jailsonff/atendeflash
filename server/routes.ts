@@ -71,15 +71,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
   baileysWhatsAppService.on('message_received', async (data) => {
     console.log('Mensagem recebida:', data);
     try {
-      // Store received message in database
-      const message = await storage.createMessage({
-        fromConnectionId: data.connectionId,
-        toConnectionId: 'system', // System receives the message
-        content: data.body,
-        messageType: 'text',
-        isFromAgent: false
-      });
+      // Get all connected WhatsApp numbers for intelligent routing
+      const connections = await storage.getWhatsappConnections();
+      const connectedNumbers = connections
+        .filter(conn => conn.status === 'connected' && conn.phoneNumber)
+        .reduce((acc, conn) => {
+          const cleanNumber = conn.phoneNumber.replace(/\D/g, '');
+          acc[cleanNumber] = { id: conn.id, name: conn.name };
+          return acc;
+        }, {} as Record<string, { id: string; name: string }>);
+
+      // Extract sender number from WhatsApp ID (format: number@s.whatsapp.net)
+      const fromNumber = data.from?.split('@')[0]?.replace(/\D/g, '') || '';
+      const senderConnection = connectedNumbers[fromNumber];
       
+      // Determine if this is an inter-connection message
+      let messageData;
+      if (senderConnection && senderConnection.id !== data.connectionId) {
+        // This is a message FROM one of our connections TO another
+        console.log(`📨 Inter-conexão detectada: ${senderConnection.name} → ${connections.find(c => c.id === data.connectionId)?.name}`);
+        messageData = {
+          fromConnectionId: senderConnection.id, // The sender connection
+          toConnectionId: data.connectionId,     // The receiver connection
+          content: data.body,
+          messageType: 'text' as const,
+          isFromAgent: false,
+          agentId: null
+        };
+      } else if (!senderConnection && !data.fromMe) {
+        // This is a message from external contact to one of our connections
+        console.log(`📨 Mensagem externa para: ${connections.find(c => c.id === data.connectionId)?.name}`);
+        messageData = {
+          fromConnectionId: data.connectionId,
+          toConnectionId: 'system',
+          content: data.body,
+          messageType: 'text' as const,
+          isFromAgent: false,
+          agentId: null
+        };
+      } else {
+        // Skip - this is a duplicate message from the sender side
+        console.log(`⏭️  Ignorando duplicata: ${senderConnection?.name || 'desconhecido'} (própria mensagem)`);
+        return;
+      }
+      
+      const message = await storage.createMessage(messageData);
       broadcast('message_received', message);
       
       // Check for AI agent responses
@@ -221,11 +257,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Messages API
+  // Messages API - Filter to show only inter-connection conversations
   app.get("/api/messages", async (_req, res) => {
     try {
-      const messages = await storage.getMessages();
-      res.json(messages);
+      const allMessages = await storage.getMessages();
+      const connections = await storage.getWhatsappConnections();
+      const connectedNumbers = connections
+        .filter(conn => conn.status === 'connected' && conn.phoneNumber)
+        .map(conn => conn.phoneNumber);
+
+      // Filter messages to show only conversations between our own connections
+      const filteredMessages = allMessages.filter(message => {
+        // Check if the message is from/to one of our connected numbers
+        const fromNumber = message.from?.replace(/\D/g, '');
+        const isFromOurConnection = connectedNumbers.some(num => 
+          num.replace(/\D/g, '').includes(fromNumber || '')
+        );
+        
+        // Only show inter-connection messages or system messages
+        return message.toConnectionId === 'system' && isFromOurConnection;
+      });
+
+      res.json(filteredMessages);
     } catch (error) {
       res.status(500).json({ message: "Erro ao buscar mensagens" });
     }
