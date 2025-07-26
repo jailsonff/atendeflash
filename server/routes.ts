@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { WebSocketServer, WebSocket } from "ws";
+import { Server as SocketIOServer } from "socket.io";
 import { storage } from "./storage";
 import { whatsappService } from "./services/whatsapp";
 import { openaiService } from "./services/openai";
@@ -14,34 +14,31 @@ import {
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
 
-  // WebSocket server setup
-  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
-  
-  const connectedClients = new Set<WebSocket>();
+  // Socket.io server setup
+  const io = new SocketIOServer(httpServer, {
+    cors: {
+      origin: "*",
+      methods: ["GET", "POST"]
+    },
+    transports: ['websocket', 'polling']
+  });
 
-  wss.on('connection', (ws) => {
-    connectedClients.add(ws);
-    console.log('Cliente WebSocket conectado');
+  io.on('connection', (socket) => {
+    console.log('Cliente Socket.io conectado:', socket.id);
 
-    ws.on('close', () => {
-      connectedClients.delete(ws);
-      console.log('Cliente WebSocket desconectado');
+    socket.on('disconnect', () => {
+      console.log('Cliente Socket.io desconectado:', socket.id);
     });
 
-    ws.on('error', (error) => {
-      console.error('Erro WebSocket:', error);
-      connectedClients.delete(ws);
+    socket.on('error', (error) => {
+      console.error('Erro Socket.io:', error);
     });
   });
 
-  // Broadcast function for real-time updates
-  function broadcast(type: string, data: any) {
-    const message = JSON.stringify({ type, data });
-    connectedClients.forEach(client => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(message);
-      }
-    });
+  // Broadcast function for real-time updates via Socket.io
+  function broadcast(event: string, data: any) {
+    io.emit(event, data);
+    console.log(`Broadcast ${event}:`, data);
   }
 
   // WhatsApp service event listeners

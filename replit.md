@@ -20,7 +20,8 @@ Preferred communication style: Simple, everyday language.
 - **Runtime**: Node.js with Express.js
 - **Language**: TypeScript with ES modules
 - **Database ORM**: Drizzle ORM with PostgreSQL
-- **Real-time Communication**: WebSocket server for live updates
+- **Real-time Communication**: Socket.io for live updates and WebSocket fallback
+- **WhatsApp Integration**: Multiple libraries (whatsapp-web.js + Baileys) for maximum compatibility
 - **External APIs**: OpenAI GPT-4o integration for AI agents
 
 ### Key Components
@@ -32,16 +33,18 @@ Preferred communication style: Simple, everyday language.
 - **chatgpt_config**: Global ChatGPT API configuration and settings
 
 #### Real-time Features
-- WebSocket server at `/ws` endpoint for live updates
-- Real-time message synchronization between connected WhatsApp numbers
-- Live QR code generation and connection status updates
-- Instant notifications for connection events
+- **Socket.io**: Primary real-time communication with WebSocket fallback
+- **Live Updates**: Real-time message synchronization between connected WhatsApp numbers
+- **QR Code Streaming**: Live QR code generation and connection status updates
+- **Event Broadcasting**: Instant notifications for connection events, messages, and AI responses
+- **Connection Management**: Auto-reconnection with status tracking
 
 #### WhatsApp Integration
-- Placeholder service for WhatsApp connectivity (designed for WPPConnect, Baileys, or Venom-bot)
-- QR code generation for device pairing
-- Session management and persistence
-- Message sending/receiving capabilities
+- **Multiple Libraries**: whatsapp-web.js (primary) and Baileys (secondary) for maximum compatibility
+- **Real QR Codes**: Official WhatsApp Web QR code generation for authentic connections
+- **Session Management**: Local authentication with automatic backup and restore
+- **Message Handling**: Full support for text, images, and multimedia messages
+- **Auto-reconnection**: Intelligent reconnection with exponential backoff
 
 #### AI Agent System
 - Customizable AI personas with adjustable temperature settings
@@ -62,7 +65,9 @@ Preferred communication style: Simple, everyday language.
 - **@tanstack/react-query**: Server state management
 - **@radix-ui/***: Headless UI components foundation
 - **drizzle-orm**: Type-safe SQL ORM
-- **ws**: WebSocket implementation
+- **socket.io**: Real-time bidirectional communication
+- **whatsapp-web.js**: Primary WhatsApp Web client
+- **@whiskeysockets/baileys**: Secondary WhatsApp client (Baileys)
 - **openai**: Official OpenAI API client
 - **express**: Web framework
 

@@ -1,168 +1,88 @@
+import { io, Socket } from 'socket.io-client';
+
 class WebSocketClient {
-  private ws: WebSocket | null = null;
-  private url: string;
-  private reconnectInterval: number = 1000;
-  private maxReconnectAttempts: number = 5;
-  private reconnectAttempts: number = 0;
-  private isConnecting: boolean = false;
-  private listeners: Map<string, Function[]> = new Map();
-  private reconnectTimeout: NodeJS.Timeout | null = null;
+  private socket: Socket | null = null;
+  private reconnectAttempts = 0;
+  private maxReconnectAttempts = 5;
+  private isConnected = false;
 
-  constructor() {
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    this.url = `${protocol}//${window.location.host}/ws`;
-  }
+  connect() {
+    if (this.socket) {
+      return;
+    }
 
-  connect(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      if (this.isConnecting || (this.ws && this.ws.readyState === WebSocket.OPEN)) {
-        resolve();
-        return;
-      }
+    console.log('Iniciando conexão Socket.io...');
 
-      this.isConnecting = true;
-      this.ws = new WebSocket(this.url);
+    this.socket = io({
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: this.maxReconnectAttempts,
+      reconnectionDelay: 1000,
+      forceNew: true
+    });
 
-      this.ws.onopen = () => {
-        console.log('WebSocket conectado');
-        this.isConnecting = false;
-        this.reconnectAttempts = 0;
-        this.emit('connect');
-        resolve();
-      };
+    this.socket.on('connect', () => {
+      console.log('Socket.io conectado:', this.socket?.id);
+      this.isConnected = true;
+      this.reconnectAttempts = 0;
+    });
 
-      this.ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          this.emit('message', data);
-          
-          // Emit specific event types
-          if (data.type) {
-            this.emit(data.type, data.payload || data);
-          }
-        } catch (error) {
-          console.error('Erro ao processar mensagem WebSocket:', error);
-        }
-      };
+    this.socket.on('disconnect', (reason) => {
+      console.log('Socket.io desconectado:', reason);
+      this.isConnected = false;
+    });
 
-      this.ws.onclose = (event) => {
-        console.log('WebSocket desconectado:', event.code, event.reason);
-        this.isConnecting = false;
-        this.emit('close', event);
-        
-        if (event.code !== 1000 && this.reconnectAttempts < this.maxReconnectAttempts) {
-          this.scheduleReconnect();
-        }
-      };
-
-      this.ws.onerror = (error) => {
-        console.error('Erro WebSocket:', error);
-        this.isConnecting = false;
-        this.emit('error', error);
-        reject(error);
-      };
+    this.socket.on('connect_error', (error) => {
+      console.error('Erro de conexão Socket.io:', error);
+      this.reconnectAttempts++;
     });
   }
 
-  private scheduleReconnect() {
-    if (this.reconnectTimeout) {
-      clearTimeout(this.reconnectTimeout);
-    }
-
-    this.reconnectAttempts++;
-    const delay = this.reconnectInterval * this.reconnectAttempts;
-    
-    console.log(`Tentando reconectar em ${delay}ms (tentativa ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
-    
-    this.reconnectTimeout = setTimeout(() => {
-      this.connect().catch(() => {
-        if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-          console.error('Máximo de tentativas de reconnexão atingido');
-          this.emit('maxReconnectAttemptsReached');
-        }
-      });
-    }, delay);
-  }
-
   disconnect() {
-    if (this.reconnectTimeout) {
-      clearTimeout(this.reconnectTimeout);
-      this.reconnectTimeout = null;
-    }
-    
-    if (this.ws) {
-      this.ws.close(1000, 'Desconexão manual');
-      this.ws = null;
+    if (this.socket) {
+      this.socket.disconnect();
+      this.socket = null;
+      this.isConnected = false;
     }
   }
 
-  send(type: string, payload?: any) {
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify({ type, payload }));
-    } else {
-      console.warn('WebSocket não está conectado. Mensagem não enviada:', { type, payload });
+  onConnect(callback: () => void) {
+    if (this.socket) {
+      this.socket.on('connect', callback);
     }
   }
 
-  // Event listener methods
-  on(event: string, callback: Function) {
-    if (!this.listeners.has(event)) {
-      this.listeners.set(event, []);
-    }
-    this.listeners.get(event)!.push(callback);
-  }
-
-  off(event: string, callback: Function) {
-    const eventListeners = this.listeners.get(event);
-    if (eventListeners) {
-      const index = eventListeners.indexOf(callback);
-      if (index > -1) {
-        eventListeners.splice(index, 1);
-      }
+  onDisconnect(callback: () => void) {
+    if (this.socket) {
+      this.socket.on('disconnect', callback);
     }
   }
 
-  private emit(event: string, data?: any) {
-    const eventListeners = this.listeners.get(event);
-    if (eventListeners) {
-      eventListeners.forEach(callback => callback(data));
+  onError(callback: (error: any) => void) {
+    if (this.socket) {
+      this.socket.on('connect_error', callback);
     }
   }
 
-  // Convenience methods for common events
-  onConnect(callback: Function) {
-    this.on('connect', callback);
-  }
-
-  onDisconnect(callback: Function) {
-    this.on('close', callback);
-  }
-
-  onError(callback: Function) {
-    this.on('error', callback);
-  }
-
-  onMessage(event: string, callback: Function) {
-    this.on(event, callback);
-  }
-
-  // Connection status
-  get isConnected(): boolean {
-    return this.ws !== null && this.ws.readyState === WebSocket.OPEN;
-  }
-
-  get connectionState(): string {
-    if (!this.ws) return 'disconnected';
-    switch (this.ws.readyState) {
-      case WebSocket.CONNECTING: return 'connecting';
-      case WebSocket.OPEN: return 'connected';
-      case WebSocket.CLOSING: return 'closing';
-      case WebSocket.CLOSED: return 'disconnected';
-      default: return 'unknown';
+  onMessage(event: string, callback: (data: any) => void) {
+    if (this.socket) {
+      this.socket.on(event, callback);
     }
+  }
+
+  emit(event: string, data?: any) {
+    if (this.socket && this.isConnected) {
+      this.socket.emit(event, data);
+    }
+  }
+
+  getConnectionStatus() {
+    return {
+      isConnected: this.isConnected,
+      reconnectAttempts: this.reconnectAttempts
+    };
   }
 }
 
-// Export singleton instance
-export const wsClient = new WebSocketClient();
+const wsClient = new WebSocketClient();
 export default wsClient;
