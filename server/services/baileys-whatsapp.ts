@@ -491,6 +491,10 @@ export class BaileysWhatsAppService extends EventEmitter {
       throw error;
     }
   }
+
+  setStorage(storage: any) {
+    this.storage = storage;
+  }
 }
 
 export const baileysWhatsAppService = new BaileysWhatsAppService();

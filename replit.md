@@ -101,10 +101,12 @@ Preferred communication style: Simple, everyday language.
 - ✅ Números reais (+558171196726) aparecem após conexão bem-sucedida
 - ✅ Recebimento de mensagens em tempo real implementado
 - ✅ Socket.io configurado para atualizações instantâneas de status
-- ✅ Sistema de persistência de sessão implementado
+- ✅ Sistema de persistência de sessão implementado com restoreSession
 - ✅ Conexões mantidas após reinicialização do servidor
+- ✅ Sistema de regeneração automática de QR codes (erro 515)
 - ✅ Tratamento robusto de erros para evitar crashes do servidor
-- ✅ Auto-reconnect com backoff para conexões perdidas
+- ✅ Auto-reconnect com backoff otimizado para expiração de QR codes
+- ✅ Sistema de consistência total implementado - conexões não são removidas
 
 ### Special Features
 - Replit-specific configurations for development environment
