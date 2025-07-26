@@ -140,6 +140,10 @@ Preferred communication style: Simple, everyday language.
 - ✅ Agentes IA voltaram a responder automaticamente via WebSocket
 - ✅ DENTISTA respondendo automaticamente a mensagens do WhatsApp real
 - ✅ Integração completa: WhatsApp → IA → Resposta automática funcionando
+- ⏰ TEMPO DE RESPOSTA IMPLEMENTADO (26/07/2025 16:23)
+- ✅ Sistema agora respeita o responseTime configurado no ChatGPT (2000ms)
+- ✅ Delay aplicado tanto em mensagens WebSocket quanto via API
+- ✅ Logs mostram "Waiting Xms before AI response (configured delay)"
 
 ### Special Features
 - Replit-specific configurations for development environment
