@@ -27,31 +27,31 @@
   /* Aquecedor Turbo Custom Colors */
   --turquoise: hsl(180, 100%, 41%);
   --fluorescent-pink: hsl(328, 100%, 54%);
-  --dark-bg: hsl(0, 0%, 0%);
-  --dark-secondary: hsl(0, 0%, 10%);
-  --dark-tertiary: hsl(0, 0%, 16%);
+  --dark-bg: hsl(220, 13%, 8%);
+  --dark-secondary: hsl(220, 13%, 10%);
+  --dark-tertiary: hsl(220, 13%, 12%);
 }
 
 .dark {
-  --background: hsl(0, 0%, 0%);
+  --background: hsl(220, 13%, 8%);
   --foreground: hsl(0, 0%, 98%);
-  --muted: hsl(0, 0%, 10%);
+  --muted: hsl(220, 13%, 12%);
   --muted-foreground: hsl(0, 0%, 65%);
-  --popover: hsl(0, 0%, 10%);
+  --popover: hsl(220, 13%, 10%);
   --popover-foreground: hsl(0, 0%, 98%);
-  --card: hsl(0, 0%, 10%);
+  --card: hsl(220, 13%, 10%);
   --card-foreground: hsl(0, 0%, 98%);
-  --border: hsl(0, 0%, 20%);
-  --input: hsl(0, 0%, 16%);
+  --border: hsl(220, 13%, 18%);
+  --input: hsl(220, 13%, 14%);
   --primary: hsl(180, 100%, 41%);
   --primary-foreground: hsl(0, 0%, 100%);
-  --secondary: hsl(0, 0%, 16%);
+  --secondary: hsl(220, 13%, 14%);
   --secondary-foreground: hsl(0, 0%, 98%);
-  --accent: hsl(0, 0%, 16%);
+  --accent: hsl(220, 13%, 14%);
   --accent-foreground: hsl(0, 0%, 98%);
-  --destructive: hsl(0, 62.8%, 30.6%);
+  --destructive: hsl(0, 62.8%, 50%);
   --destructive-foreground: hsl(0, 0%, 98%);
-  --ring: hsl(0, 0%, 84%);
+  --ring: hsl(180, 100%, 41%);
 }
 
 @layer base {

@@ -161,11 +161,11 @@ export default function Conexoes() {
   return (
     <>
       {/* Header */}
-      <header className="bg-dark-secondary border-b border-gray-800 px-6 py-4">
+      <header className="bg-card border-b border-border px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-white">Conexões WhatsApp</h2>
-            <p className="text-gray-400 text-sm">Gerencie suas conexões do WhatsApp</p>
+            <h2 className="text-2xl font-bold text-foreground">Conexões WhatsApp</h2>
+            <p className="text-muted-foreground text-sm">Gerencie suas conexões do WhatsApp</p>
           </div>
           <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
             <DialogTrigger asChild>

@@ -86,18 +86,18 @@ export default function Dashboard() {
   return (
     <>
       {/* Header */}
-      <header className="bg-dark-secondary border-b border-gray-800 px-6 py-4">
+      <header className="bg-card border-b border-border px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-white">Dashboard</h2>
-            <p className="text-gray-400 text-sm">Visão geral do sistema Aquecedor Turbo</p>
+            <h2 className="text-2xl font-bold text-foreground">Dashboard</h2>
+            <p className="text-muted-foreground text-sm">Visão geral do sistema Aquecedor Turbo</p>
           </div>
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2 px-3 py-1 bg-green-500/20 text-green-400 rounded-full text-sm">
               <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse-glow"></div>
               <span>Tempo Real Ativo</span>
             </div>
-            <Button variant="ghost" size="sm" className="relative p-2 text-gray-400 hover:text-white">
+            <Button variant="ghost" size="sm" className="relative p-2 text-muted-foreground hover:text-foreground">
               <i className="fas fa-bell text-lg"></i>
               <span className="absolute -top-1 -right-1 w-3 h-3 bg-[hsl(328,100%,54%)] rounded-full"></span>
             </Button>
@@ -109,23 +109,23 @@ export default function Dashboard() {
       <main className="flex-1 overflow-y-auto p-6 space-y-6">
         {/* Metrics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card className="glass-effect rounded-xl hover:glow-turquoise transition-all duration-300">
+          <Card className="bg-card border-border rounded-xl hover:glow-turquoise transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-400 text-sm font-medium">Conexões Ativas</p>
-                  <p className="text-3xl font-bold text-[hsl(180,100%,41%)] mt-1">
+                  <p className="text-muted-foreground text-sm font-medium">Conexões Ativas</p>
+                  <p className="text-3xl font-bold text-primary mt-1">
                     {metrics?.activeConnections || 0}
                   </p>
                 </div>
-                <div className="w-12 h-12 bg-[hsl(180,100%,41%)]/20 rounded-lg flex items-center justify-center">
-                  <i className="fab fa-whatsapp text-[hsl(180,100%,41%)] text-xl"></i>
+                <div className="w-12 h-12 bg-primary/20 rounded-lg flex items-center justify-center">
+                  <i className="fab fa-whatsapp text-primary text-xl"></i>
                 </div>
               </div>
               <div className="mt-4 flex items-center text-sm">
                 <i className="fas fa-arrow-up text-green-400 mr-1"></i>
                 <span className="text-green-400 font-medium">+{Math.floor(Math.random() * 5)}</span>
-                <span className="text-gray-400 ml-1">nas últimas 24h</span>
+                <span className="text-muted-foreground ml-1">nas últimas 24h</span>
               </div>
             </CardContent>
           </Card>

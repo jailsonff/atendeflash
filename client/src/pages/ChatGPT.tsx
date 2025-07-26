@@ -177,11 +177,11 @@ export default function ChatGPT() {
   return (
     <>
       {/* Header */}
-      <header className="bg-dark-secondary border-b border-gray-800 px-6 py-4">
+      <header className="bg-card border-b border-border px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-white">Configuração ChatGPT</h2>
-            <p className="text-gray-400 text-sm">Configure a integração com OpenAI para agentes IA</p>
+            <h2 className="text-2xl font-bold text-foreground">Configuração ChatGPT</h2>
+            <p className="text-muted-foreground text-sm">Configure a integração com OpenAI para agentes IA</p>
           </div>
           <div className="flex items-center space-x-4">
             {currentConfig?.configured && (
@@ -193,7 +193,7 @@ export default function ChatGPT() {
             <Button
               onClick={handleSave}
               disabled={!config.apiKey || saveConfigMutation.isPending}
-              className="bg-[hsl(180,100%,41%)] hover:bg-[hsl(180,100%,41%)]/80"
+              className="bg-primary hover:bg-primary/80 text-primary-foreground"
             >
               {saveConfigMutation.isPending ? (
                 <>
@@ -214,16 +214,16 @@ export default function ChatGPT() {
       {/* Configuration Content */}
       <main className="flex-1 overflow-y-auto p-6 space-y-6">
         {/* API Configuration */}
-        <Card className="glass-effect rounded-xl">
+        <Card className="bg-card border-border rounded-xl">
           <CardHeader>
-            <CardTitle className="text-white flex items-center">
-              <i className="fas fa-key text-[hsl(180,100%,41%)] mr-3"></i>
+            <CardTitle className="text-foreground flex items-center">
+              <i className="fas fa-key text-primary mr-3"></i>
               Configuração da API OpenAI
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             <div>
-              <Label htmlFor="apiKey" className="text-gray-300">Chave da API OpenAI</Label>
+              <Label htmlFor="apiKey" className="text-foreground">Chave da API OpenAI</Label>
               <div className="flex space-x-2 mt-2">
                 <Input
                   id="apiKey"
@@ -234,13 +234,13 @@ export default function ChatGPT() {
                     setApiTestResult({ valid: false, tested: false });
                   }}
                   placeholder="sk-..."
-                  className="flex-1 bg-dark-tertiary border-gray-600 text-white"
+                  className="flex-1 bg-input border-border text-foreground"
                 />
                 <Button
                   onClick={handleTestApi}
                   disabled={isTestingApi || !config.apiKey.trim()}
                   variant="outline"
-                  className="border-[hsl(180,100%,41%)]/30 text-[hsl(180,100%,41%)] hover:bg-[hsl(180,100%,41%)]/20"
+                  className="border-primary/30 text-primary hover:bg-primary/20"
                 >
                   {isTestingApi ? (
                     <i className="fas fa-spinner fa-spin"></i>

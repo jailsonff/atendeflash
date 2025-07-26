@@ -187,11 +187,11 @@ export default function Agentes() {
   return (
     <>
       {/* Header */}
-      <header className="bg-dark-secondary border-b border-gray-800 px-6 py-4">
+      <header className="bg-card border-b border-border px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-white">Agentes IA</h2>
-            <p className="text-gray-400 text-sm">Gerencie seus agentes de inteligência artificial</p>
+            <h2 className="text-2xl font-bold text-foreground">Agentes IA</h2>
+            <p className="text-muted-foreground text-sm">Gerencie seus agentes de inteligência artificial</p>
           </div>
           <Dialog open={isCreateModalOpen} onOpenChange={(open) => {
             setIsCreateModalOpen(open);

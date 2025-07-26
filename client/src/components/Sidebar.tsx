@@ -13,9 +13,9 @@ export default function Sidebar() {
   const [location] = useLocation();
 
   return (
-    <div className="w-64 bg-dark-secondary border-r border-gray-800 flex flex-col">
+    <div className="w-64 bg-card border-r border-border flex flex-col">
       {/* Logo/Brand */}
-      <div className="p-6 border-b border-gray-800">
+      <div className="p-6 border-b border-border">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 bg-gradient-to-br from-[hsl(180,100%,41%)] to-[hsl(328,100%,54%)] rounded-lg flex items-center justify-center">
             <i className="fas fa-fire text-white text-lg"></i>
@@ -38,8 +38,8 @@ export default function Sidebar() {
                 className={cn(
                   "flex items-center space-x-3 px-4 py-3 rounded-lg transition-all cursor-pointer",
                   isActive
-                    ? "bg-[hsl(180,100%,41%)]/20 text-[hsl(180,100%,41%)] border border-[hsl(180,100%,41%)]/30 glow-turquoise"
-                    : "hover:bg-gray-800 text-gray-300 hover:text-white"
+                    ? "bg-primary/20 text-primary border border-primary/30 glow-turquoise"
+                    : "hover:bg-muted text-muted-foreground hover:text-foreground"
                 )}
               >
                 <i className={item.icon}></i>
@@ -51,10 +51,10 @@ export default function Sidebar() {
       </nav>
 
       {/* System Status */}
-      <div className="p-4 border-t border-gray-800">
+      <div className="p-4 border-t border-border">
         <div className="flex items-center space-x-2 text-sm">
           <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-          <span className="text-gray-400">Sistema Online</span>
+          <span className="text-muted-foreground">Sistema Online</span>
         </div>
       </div>
     </div>

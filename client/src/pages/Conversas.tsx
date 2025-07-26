@@ -132,10 +132,10 @@ export default function Conversas() {
   return (
     <>
       {/* Header */}
-      <header className="bg-dark-secondary border-b border-gray-800 px-6 py-4">
+      <header className="bg-card border-b border-border px-6 py-4">
         <div>
-          <h2 className="text-2xl font-bold text-white">Conversas</h2>
-          <p className="text-gray-400 text-sm">
+          <h2 className="text-2xl font-bold text-foreground">Conversas</h2>
+          <p className="text-muted-foreground text-sm">
             Chat em tempo real entre conexões do sistema
           </p>
         </div>
@@ -144,17 +144,17 @@ export default function Conversas() {
       {/* Chat Interface */}
       <main className="flex-1 flex overflow-hidden">
         {/* Conversations List */}
-        <div className="w-80 bg-dark-secondary border-r border-gray-800 flex flex-col">
-          <div className="p-4 border-b border-gray-800">
-            <h3 className="font-semibold text-white">Conexões Ativas</h3>
-            <p className="text-sm text-gray-400">
+        <div className="w-80 bg-card border-r border-border flex flex-col">
+          <div className="p-4 border-b border-border">
+            <h3 className="font-semibold text-foreground">Conexões Ativas</h3>
+            <p className="text-sm text-muted-foreground">
               {conversations.length} {conversations.length === 1 ? 'conversa' : 'conversas'}
             </p>
           </div>
           
           <ScrollArea className="flex-1">
             {conversations.length === 0 ? (
-              <div className="p-4 text-center text-gray-400">
+              <div className="p-4 text-center text-muted-foreground">
                 <i className="fas fa-comments text-4xl mb-2 opacity-50"></i>
                 <p className="text-sm">Nenhuma conexão ativa</p>
                 <p className="text-xs">Conecte um WhatsApp primeiro</p>
@@ -167,8 +167,8 @@ export default function Conversas() {
                     onClick={() => setSelectedConnectionId(conversation.connectionId)}
                     className={`p-3 rounded-lg cursor-pointer transition-colors ${
                       selectedConnectionId === conversation.connectionId
-                        ? 'bg-[hsl(180,100%,41%)]/20 border border-[hsl(180,100%,41%)]/30'
-                        : 'hover:bg-gray-700'
+                        ? 'bg-primary/20 border border-primary/30'
+                        : 'hover:bg-muted'
                     }`}
                   >
                     <div className="flex items-center space-x-3">
