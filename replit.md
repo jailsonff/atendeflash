@@ -144,6 +144,12 @@ Preferred communication style: Simple, everyday language.
 - ✅ Sistema agora respeita o responseTime configurado no ChatGPT (2000ms)
 - ✅ Delay aplicado tanto em mensagens WebSocket quanto via API
 - ✅ Logs mostram "Waiting Xms before AI response (configured delay)"
+- 🎯 TEMPO INDIVIDUAL POR AGENTE IMPLEMENTADO (26/07/2025 16:32)
+- ✅ Campo responseTime adicionado no schema dos agentes (default: 2000ms)
+- ✅ Interface com slider para configurar tempo de 1s até 5min por agente
+- ✅ Sistema agora usa tempo individual de cada agente ao invés do global
+- ✅ Cards dos agentes mostram tempo configurado individualmente
+- ✅ Lógica atualizada: WebSocket e API usam agent.responseTime
 
 ### Special Features
 - Replit-specific configurations for development environment

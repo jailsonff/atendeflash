@@ -20,6 +20,7 @@ interface AiAgent {
   description?: string;
   persona: string;
   temperature?: number;
+  responseTime?: number; // Response time in milliseconds
   connectionId?: string;
   isActive?: boolean;
   messageCount?: number;
@@ -42,6 +43,7 @@ export default function Agentes() {
     description: "",
     persona: "",
     temperature: 70,
+    responseTime: 2000, // Default 2 seconds
     connectionId: "",
     isActive: true,
   });
@@ -138,6 +140,7 @@ export default function Agentes() {
       description: "",
       persona: "",
       temperature: 70,
+      responseTime: 2000, // Default 2 seconds
       connectionId: "",
       isActive: true,
     });
@@ -150,6 +153,7 @@ export default function Agentes() {
       description: agent.description || "",
       persona: agent.persona,
       temperature: agent.temperature || 70,
+      responseTime: agent.responseTime || 2000,
       connectionId: agent.connectionId || "",
       isActive: agent.isActive || true,
     });
@@ -284,6 +288,26 @@ export default function Agentes() {
                   </div>
                 </div>
 
+                <div>
+                  <Label htmlFor="responseTime" className="text-gray-300">
+                    Tempo de Resposta ({Math.floor(agentForm.responseTime / 60000) > 0 ? `${Math.floor(agentForm.responseTime / 60000)}min ` : ''}{Math.floor((agentForm.responseTime % 60000) / 1000)}s)
+                  </Label>
+                  <div className="mt-2">
+                    <Slider
+                      value={[agentForm.responseTime]}
+                      onValueChange={(value) => setAgentForm(prev => ({ ...prev, responseTime: value[0] }))}
+                      max={300000} // 5 minutes
+                      min={1000} // 1 second
+                      step={1000} // 1 second steps
+                      className="w-full"
+                    />
+                    <div className="flex justify-between text-xs text-gray-400 mt-1">
+                      <span>Imediato (1s)</span>
+                      <span>5 minutos</span>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="flex items-center space-x-3">
                   <Switch
                     checked={agentForm.isActive}
@@ -384,6 +408,15 @@ export default function Agentes() {
                           <span className="text-gray-400">Mensagens:</span>
                           <span className="text-white font-medium ml-1">
                             {agent.messageCount || 0}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-gray-400">Tempo:</span>
+                          <span className="text-[hsl(328,100%,54%)] font-medium ml-1">
+                            {Math.floor((agent.responseTime || 2000) / 60000) > 0 
+                              ? `${Math.floor((agent.responseTime || 2000) / 60000)}min ` 
+                              : ''
+                            }{Math.floor(((agent.responseTime || 2000) % 60000) / 1000)}s
                           </span>
                         </div>
                       </div>

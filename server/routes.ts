@@ -117,11 +117,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (agent && agent.isActive) {
           console.log(`🤖 Processing message with AI agent: ${agent.name}`);
           
-          // Get ChatGPT configuration for response timing
-          const chatgptConfig = await storage.getChatgptConfig();
-          const responseTime = chatgptConfig?.responseTime || 2000; // Default 2 seconds
+          // Use agent's individual response time
+          const responseTime = agent?.responseTime || 2000; // Default 2 seconds if not set
           
-          console.log(`⏰ Waiting ${responseTime}ms before AI response (configured delay)`);
+          console.log(`⏰ WEBSOCKET: Agent "${agent.name}" waiting ${responseTime}ms before response (individual delay)`);
           
           // Respect the configured response time delay
           setTimeout(async () => {
@@ -167,7 +166,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
 
               broadcast('ai_response', aiMessage);
-              console.log(`✅ AI Agent ${agent.name} responded successfully after ${responseTime}ms delay`);
+              console.log(`✅ WEBSOCKET: AI Agent ${agent.name} responded successfully after ${responseTime}ms individual delay`);
             } catch (error) {
               console.error(`❌ AI response error for agent ${agent.name}:`, error);
             }
@@ -382,11 +381,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (messageData.toConnectionId && !messageData.isFromAgent) {
         const agent = await storage.getAiAgentByConnection(messageData.toConnectionId);
         if (agent && agent.isActive) {
-          // Get ChatGPT configuration for response timing
-          const chatgptConfig = await storage.getChatgptConfig();
-          const responseTime = chatgptConfig?.responseTime || 2000; // Default 2 seconds
+          // Use agent's individual response time
+          const responseTime = agent?.responseTime || 2000; // Default 2 seconds if not set
           
-          console.log(`⏰ API: Waiting ${responseTime}ms before AI response (configured delay)`);
+          console.log(`⏰ API: Agent "${agent.name}" waiting ${responseTime}ms before response (individual delay)`);
           
           // Respect the configured response time delay
           setTimeout(async () => {
@@ -431,7 +429,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
 
               broadcast('ai_response', aiMessage);
-              console.log(`✅ API: AI Agent ${agent.name} responded successfully after ${responseTime}ms delay`);
+              console.log(`✅ API: AI Agent ${agent.name} responded successfully after ${responseTime}ms individual delay`);
             } catch (error) {
               console.error('AI response error:', error);
             }
