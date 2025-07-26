@@ -35,7 +35,7 @@ export class WhatsAppService extends EventEmitter {
     return new Promise((resolve, reject) => {
       // Create a Node.js child process to handle WhatsApp Web
       const whatsappScript = this.createWhatsAppScript(connectionId);
-      const scriptPath = path.join(process.cwd(), 'temp_whatsapp_client.js');
+      const scriptPath = path.join(process.cwd(), 'temp_whatsapp_client.cjs');
       
       // Write the script to a temporary file
       fs.writeFileSync(scriptPath, whatsappScript);
@@ -106,8 +106,9 @@ export class WhatsAppService extends EventEmitter {
         this.emit('disconnected', { connectionId });
         
         // Clean up temp file
-        if (fs.existsSync(scriptPath)) {
-          fs.unlinkSync(scriptPath);
+        const tempPath = path.join(process.cwd(), 'temp_whatsapp_client.cjs');
+        if (fs.existsSync(tempPath)) {
+          fs.unlinkSync(tempPath);
         }
       });
 
