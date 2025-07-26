@@ -28,11 +28,8 @@ function QRCodeDisplay({ qrData }: { qrData: string }) {
   useEffect(() => {
     const generateQRCode = async () => {
       try {
-        // Decode base64 data to get original string
-        const decodedData = atob(qrData);
-        
-        // Generate QR code image
-        const qrCodeDataURL = await QRCode.toDataURL(decodedData, {
+        // Use the QR data directly (Baileys provides the raw QR string)
+        const qrCodeDataURL = await QRCode.toDataURL(qrData, {
           width: 256,
           margin: 2,
           color: {
@@ -44,6 +41,22 @@ function QRCodeDisplay({ qrData }: { qrData: string }) {
         setQrCodeUrl(qrCodeDataURL);
       } catch (error) {
         console.error('Erro ao gerar QR Code:', error);
+        
+        // Fallback: try decoding base64 if direct approach fails
+        try {
+          const decodedData = atob(qrData);
+          const qrCodeDataURL = await QRCode.toDataURL(decodedData, {
+            width: 256,
+            margin: 2,
+            color: {
+              dark: '#000000',
+              light: '#FFFFFF'
+            }
+          });
+          setQrCodeUrl(qrCodeDataURL);
+        } catch (fallbackError) {
+          console.error('Erro ao gerar QR Code com fallback:', fallbackError);
+        }
       }
     };
 
