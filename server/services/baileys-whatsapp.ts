@@ -1,15 +1,10 @@
 import { EventEmitter } from 'events';
 import { Boom } from '@hapi/boom';
-import makeWASocket, { 
+const { 
+  makeWASocket,
   DisconnectReason, 
-  useMultiFileAuthState,
-  WAMessage,
-  WASocket,
-  AuthenticationState,
-  SignalDataTypeMap,
-  ConnectionState,
-  proto
-} from '@whiskeysockets/baileys';
+  useMultiFileAuthState
+} = require('@whiskeysockets/baileys');
 import { pino } from 'pino';
 import fs from 'fs';
 import path from 'path';
@@ -19,7 +14,7 @@ export interface BaileysSession {
   qrCode?: string;
   isReady: boolean;
   clientInfo?: any;
-  socket?: WASocket;
+  socket?: any;
 }
 
 export class BaileysWhatsAppService extends EventEmitter {
@@ -137,7 +132,7 @@ export class BaileysWhatsAppService extends EventEmitter {
     });
   }
 
-  private extractMessageContent(message: WAMessage): string {
+  private extractMessageContent(message: any): string {
     if (message.message?.conversation) {
       return message.message.conversation;
     }
