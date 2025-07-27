@@ -36,6 +36,7 @@ export const aiAgents = pgTable("ai_agents", {
   maxTokens: integer("max_tokens").default(500), // Maximum tokens/characters for responses
   connectionId: varchar("connection_id").references(() => whatsappConnections.id),
   isActive: boolean("is_active").default(true),
+  isPaused: boolean("is_paused").default(false), // New field to pause/unpause agents
   messageCount: integer("message_count").default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

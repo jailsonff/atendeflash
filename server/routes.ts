@@ -270,7 +270,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check for AI agent response - CONTINUOUS CONVERSATION ENABLED
       if (messageData.toConnectionId) {
         const agent = await storage.getAiAgentByConnection(messageData.toConnectionId);
-        if (agent && agent.isActive) {
+        if (agent && agent.isActive && !agent.isPaused) {
           
           // CONTINUOUS CONVERSATION LOGIC:
           // 1. Always respond to human messages (isFromAgent: false)
@@ -366,6 +366,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           } else {
             console.log(`🚫 WEBSOCKET: Agent "${agent.name}" SKIPPED - Same agent would be talking to itself`);
           }
+        } else if (agent && agent.isPaused) {
+          console.log(`⏸️ WEBSOCKET: Agent "${agent.name}" SKIPPED - Agent is paused`);
         } else {
           console.log(`🚫 WEBSOCKET: Agent "${agent.name}" SKIPPED - Not active or no agent found`);
         }
@@ -648,7 +650,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check for AI agent response - CONTINUOUS CONVERSATION ENABLED  
       if (messageData.toConnectionId) {
         const agent = await storage.getAiAgentByConnection(messageData.toConnectionId);
-        if (agent && agent.isActive) {
+        if (agent && agent.isActive && !agent.isPaused) {
           
           // CONTINUOUS CONVERSATION LOGIC: Same as WebSocket version
           const shouldRespond = !messageData.isFromAgent || // Always respond to human messages
@@ -735,6 +737,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           } else {
             console.log(`🚫 API: Agent "${agent.name}" SKIPPED - Same agent would be talking to itself`);
           }
+        } else if (agent && agent.isPaused) {
+          console.log(`⏸️ API: Agent "${agent.name}" SKIPPED - Agent is paused`);
         } else {
           console.log(`🚫 API: Agent "${agent.name}" SKIPPED - Not active or no agent found`);
         }
@@ -880,6 +884,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ valid: isValid });
     } catch (error) {
       res.status(500).json({ message: "Erro ao testar API: " + (error as Error).message });
+    }
+  });
+
+  // Toggle global pause for all agents
+  app.post("/api/agents/toggle-global-pause", async (req, res) => {
+    try {
+      const { paused } = req.body;
+      
+      // Update all agents with the new pause state
+      const agents = await storage.getAiAgents();
+      const updatePromises = agents.map(agent => 
+        storage.updateAiAgent(agent.id, { isPaused: paused })
+      );
+      
+      await Promise.all(updatePromises);
+      
+      console.log(`🔄 GLOBAL AGENT PAUSE: ${paused ? 'PAUSED' : 'RESUMED'} all ${agents.length} agents`);
+      
+      broadcast('agents_global_pause_toggled', { paused, affectedCount: agents.length });
+      res.json({ success: true, paused, affectedCount: agents.length });
+    } catch (error) {
+      console.error('Error toggling global agent pause:', error);
+      res.status(500).json({ message: "Erro ao pausar/despausar agentes: " + (error as Error).message });
     }
   });
 

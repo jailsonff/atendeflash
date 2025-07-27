@@ -36,9 +36,18 @@ interface Conversation {
   unreadCount: number;
 }
 
+interface Agent {
+  id: string;
+  name: string;
+  isActive: boolean;
+  isPaused: boolean;
+  connectionId: string;
+}
+
 export default function Conversas() {
   const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState("");
+  const [globalAgentsPaused, setGlobalAgentsPaused] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   const { toast } = useToast();
@@ -52,6 +61,19 @@ export default function Conversas() {
     queryKey: ["/api/messages"],
     refetchInterval: 5000, // Refresh every 5 seconds
   });
+
+  const { data: agents = [] } = useQuery<Agent[]>({
+    queryKey: ["/api/agents"],
+    refetchInterval: 5000,
+  });
+
+  // Check if all agents are paused on component mount
+  useEffect(() => {
+    if (agents.length > 0) {
+      const allAgentsPaused = agents.every(agent => agent.isPaused);
+      setGlobalAgentsPaused(allAgentsPaused);
+    }
+  }, [agents]);
 
   // Get messages for selected conversation - filter inter-connection messages
   const conversationMessages = allMessages.filter(message => {
@@ -135,6 +157,30 @@ export default function Conversas() {
     },
   });
 
+  const toggleAgentsPauseMutation = useMutation({
+    mutationFn: async (paused: boolean) => {
+      const response = await apiRequest("POST", "/api/agents/toggle-global-pause", { paused });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setGlobalAgentsPaused(data.paused);
+      queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
+      toast({
+        title: data.paused ? "Agentes pausados" : "Agentes ativados",
+        description: data.paused 
+          ? "Os agentes não responderão automaticamente" 
+          : "Os agentes voltaram a responder automaticamente",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro",
+        description: "Não foi possível alterar status dos agentes: " + (error as Error).message,
+        variant: "destructive",
+      });
+    },
+  });
+
   // Scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -206,6 +252,33 @@ export default function Conversas() {
             </p>
           </div>
           <div className="flex items-center space-x-3">
+            <Button
+              onClick={() => toggleAgentsPauseMutation.mutate(!globalAgentsPaused)}
+              disabled={toggleAgentsPauseMutation.isPending}
+              variant="outline"
+              size="sm"
+              className={globalAgentsPaused 
+                ? "border-green-500/30 text-green-400 hover:bg-green-500/20"
+                : "border-red-500/30 text-red-400 hover:bg-red-500/20"
+              }
+            >
+              {toggleAgentsPauseMutation.isPending ? (
+                <>
+                  <i className="fas fa-spinner animate-spin mr-2"></i>
+                  Alterando...
+                </>
+              ) : globalAgentsPaused ? (
+                <>
+                  <i className="fas fa-play mr-2"></i>
+                  Ativar Agentes
+                </>
+              ) : (
+                <>
+                  <i className="fas fa-pause mr-2"></i>
+                  Pausar Agentes
+                </>
+              )}
+            </Button>
             <Button
               onClick={() => deduplicateMutation.mutate()}
               disabled={deduplicateMutation.isPending}
