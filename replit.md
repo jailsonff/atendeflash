@@ -207,6 +207,21 @@ Preferred communication style: Simple, everyday language.
 - ✅ Backend processa e envia múltiplas mensagens com delay de 500ms entre elas
 - ✅ Cards dos agentes mostram quantidade configurada ("Por resposta: X msgs")
 - ✅ Contador de mensagens atualizado para contar todas as mensagens enviadas
+- 🔄 SISTEMA DE LIMITE DE CARACTERES IMPLEMENTADO (27/07/2025 20:18)
+- ✅ Campo "Limite de Caracteres" substituiu sistema de múltiplas mensagens
+- ✅ Slider configurável de 50 até 2000 caracteres por resposta
+- ✅ Sistema OpenAI atualizado para respeitar limite máximo de caracteres
+- ✅ Interface mostra "X chars" no card de cada agente
+- ✅ Backend trunca respostas que excedem limite configurado
+- ✅ Migração DB preservando configurações existentes com padrão 500 chars
+- 🔧 DUPLICATAS DE MENSAGENS AI CORRIGIDAS (27/07/2025 20:18)
+- ✅ Sistema de cache melhorado com chaves únicas (agentId:content:connections)
+- ✅ Prevenção de duplicatas via API e WebSocket implementada
+- ✅ Limpeza automática dos caches para otimização
+- ✅ Sistema de deduplicação automática corrigido (erro broadcast resolvido)
+- ⚠️ PROBLEMA IDENTIFICADO: Desconexões constantes WhatsApp (Stream Errored conflict)
+- ✅ Sistema de auto-reconexão funcionando, agentes IA respondem normalmente
+- ✅ Conversas entre agentes reativadas com sucesso (GABRIEL ↔ MANDA)
 
 ### Special Features
 - Replit-specific configurations for development environment
