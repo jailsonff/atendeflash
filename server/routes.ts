@@ -11,6 +11,65 @@ import {
   insertChatgptConfigSchema 
 } from "@shared/schema";
 
+// WhatsApp Message Retry System - Handle disconnections gracefully
+async function sendWhatsAppMessageWithRetry(
+  fromConnectionId: string, 
+  toPhoneNumber: string, 
+  content: string, 
+  maxRetries: number = 3
+): Promise<void> {
+  let attempt = 0;
+  const retryDelay = 2000; // 2 seconds between retries
+  
+  while (attempt < maxRetries) {
+    try {
+      // Check if connection is available, if not wait for reconnection
+      if (!baileysWhatsAppService.isConnected(fromConnectionId)) {
+        console.log(`⏳ Connection ${fromConnectionId} not ready, waiting for reconnection (attempt ${attempt + 1}/${maxRetries})`);
+        
+        // Wait for connection with timeout
+        const connected = await waitForConnection(fromConnectionId, 10000); // 10 second timeout
+        if (!connected) {
+          throw new Error('Connection timeout - unable to connect');
+        }
+      }
+      
+      // Attempt to send message
+      await baileysWhatsAppService.sendMessage(fromConnectionId, toPhoneNumber, content, 'text');
+      console.log(`✅ RETRY SUCCESS: Message sent on attempt ${attempt + 1}`);
+      return; // Success - exit function
+      
+    } catch (error) {
+      attempt++;
+      console.log(`❌ RETRY ${attempt}/${maxRetries} FAILED: ${error.message}`);
+      
+      if (attempt >= maxRetries) {
+        console.log(`🚨 FINAL FAILURE: All ${maxRetries} retry attempts failed for message: "${content.slice(0, 50)}..."`);
+        throw error; // Final failure
+      }
+      
+      // Wait before next retry with exponential backoff
+      const delay = retryDelay * Math.pow(2, attempt - 1);
+      console.log(`⏰ Waiting ${delay}ms before retry ${attempt + 1}...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+}
+
+// Helper function to wait for connection
+async function waitForConnection(connectionId: string, timeoutMs: number): Promise<boolean> {
+  const startTime = Date.now();
+  
+  while (Date.now() - startTime < timeoutMs) {
+    if (baileysWhatsAppService.isConnected(connectionId)) {
+      return true;
+    }
+    await new Promise(resolve => setTimeout(resolve, 500)); // Check every 500ms
+  }
+  
+  return false;
+}
+
 // Global cache to track recent AI responses and prevent infinite loops
 const recentAiResponses = new Map<string, number>(); // message content -> timestamp
 
@@ -566,21 +625,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           toPhone: toConnection?.phoneNumber
         });
         
-        if (fromConnection && toConnection && toConnection.phoneNumber && 
-            baileysWhatsAppService.isConnected(messageData.fromConnectionId)) {
+        if (fromConnection && toConnection && toConnection.phoneNumber) {
           
           console.log(`🚀 ATTEMPTING WHATSAPP SEND: ${fromConnection.name} → ${toConnection.name}`);
           
-          // Send WhatsApp message asynchronously
-          baileysWhatsAppService.sendMessage(
+          // Send WhatsApp message with retry mechanism (asynchronously)
+          sendWhatsAppMessageWithRetry(
             messageData.fromConnectionId,
             toConnection.phoneNumber,
             messageData.content,
-            'text'
+            3 // Max 3 retries
           ).then(() => {
             console.log(`✅ WHATSAPP SUCCESS: "${messageData.content}" sent to ${toConnection.phoneNumber}`);
           }).catch((error) => {
-            console.log(`❌ WHATSAPP FAILED: ${error.message}`);
+            console.log(`❌ WHATSAPP FAILED AFTER RETRIES: ${error.message}`);
           });
         } else {
           console.log(`⚠️ SKIP WHATSAPP: Missing requirements`);
@@ -643,14 +701,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 
                 console.log(`🔒 CACHE: Added AI response ${i+1}/${messagesToSend.length} to loop prevention cache: "${messageContent.slice(0, 50)}..."`);
 
-                // Send AI response via WhatsApp with small delay between messages
+                // Send AI response via WhatsApp with retry mechanism for disconnections
                 if (messageData.fromConnectionId) {
                   const fromConnection = await storage.getWhatsappConnection(messageData.fromConnectionId);
-                  if (fromConnection && fromConnection.phoneNumber && baileysWhatsAppService.isConnected(messageData.toConnectionId)) {
-                    await baileysWhatsAppService.sendMessage(
+                  if (fromConnection && fromConnection.phoneNumber) {
+                    await sendWhatsAppMessageWithRetry(
                       messageData.toConnectionId,
                       fromConnection.phoneNumber,
-                      messageContent
+                      messageContent,
+                      3 // Max 3 retries
                     );
                     
                     // Small delay between multiple messages (500ms)
