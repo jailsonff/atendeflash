@@ -179,15 +179,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return acc;
         }, {} as Record<string, { id: string; name: string }>);
 
+      console.log('🔍 DEBUG - Connected numbers:', Object.keys(connectedNumbers));
+      console.log('🔍 DEBUG - Message from:', data.from);
+
       // Extract sender number from WhatsApp ID (format: number@s.whatsapp.net)
       const fromNumber = data.from?.split('@')[0]?.replace(/\D/g, '') || '';
       const senderConnection = connectedNumbers[fromNumber];
       
+      console.log('🔍 DEBUG - From number extracted:', fromNumber);
+      console.log('🔍 DEBUG - Sender connection found:', senderConnection?.name || 'NONE');
+      console.log('🔍 DEBUG - Message receiving connection:', connections.find(c => c.id === data.connectionId)?.name);
+      
       // Determine if this is an inter-connection message
       let messageData;
-      if (senderConnection && senderConnection.id !== data.connectionId) {
+      
+      // Check if message is from a connected WhatsApp number (direct inter-connection)
+      const isDirectInterConnection = senderConnection && senderConnection.id !== data.connectionId;
+      
+      // Check if message is from our own system but not recognized (sent via web interface)
+      // This happens when we send via API and it comes back from WhatsApp
+      const receivingConnection = connections.find(c => c.id === data.connectionId);
+      const allConnectedIds = connections.filter(c => c.status === 'connected').map(c => c.id);
+      const isPotentialSystemMessage = receivingConnection && !data.fromMe;
+      
+      if (isDirectInterConnection) {
         // This is a message FROM one of our connections TO another
-        console.log(`📨 Inter-conexão detectada: ${senderConnection.name} → ${connections.find(c => c.id === data.connectionId)?.name}`);
+        console.log(`📨 Inter-conexão detectada: ${senderConnection.name} → ${receivingConnection?.name}`);
         
         // 🔒 CHECK FOR DUPLICATE MESSAGE - Skip if this message was sent via API
         cleanSentMessageCache(); // Clean old entries first
@@ -254,10 +271,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
           console.log(`🔒 AI MESSAGE CACHED: "${data.body.slice(0, 30)}..." from agent "${agentFromSender?.name}"`);
         }
+      } else if (receivingConnection && allConnectedIds.length === 2 && !data.fromMe) {
+        // SPECIAL CASE: When we have exactly 2 connections and message arrives at one of them
+        // This might be a response from our AI agents or continuation of conversation
+        // We'll treat it as a message from the OTHER connection to THIS connection
+        const otherConnectionId = allConnectedIds.find(id => id !== data.connectionId);
+        if (otherConnectionId) {
+          const otherConnection = connections.find(c => c.id === otherConnectionId);
+          console.log(`🔄 AUTO-DETECTING inter-connection: ${otherConnection?.name} → ${receivingConnection.name} (2-connection mode)`);
+          
+          // Clean caches
+          cleanSentMessageCache();
+          cleanAiMessageCache();
+          
+          // Check for agent messages
+          const agentFromSender = await storage.getAiAgentByConnection(otherConnectionId);
+          const aiMessageKey = agentFromSender ? 
+            `${agentFromSender.id}:${data.body}:${otherConnectionId}:${data.connectionId}` : null;
+          
+          const isKnownAiMessage = aiMessageKey && aiMessageCache.has(aiMessageKey) && 
+            (Date.now() - aiMessageCache.get(aiMessageKey)!.timestamp) < 120000;
+          
+          if (isKnownAiMessage) {
+            console.log(`🔒 SKIP AI DUPLICATE: "${data.body.slice(0, 50)}..." from agent "${agentFromSender?.name}" already processed`);
+            return;
+          }
+          
+          const isAgentMessage = !!agentFromSender;
+          
+          messageData = {
+            fromConnectionId: otherConnectionId,
+            toConnectionId: data.connectionId,
+            content: data.body,
+            messageType: data.type,
+            timestamp: data.timestamp || new Date(),
+            isFromAgent: isAgentMessage,
+            agentId: isAgentMessage ? agentFromSender.id : null
+          };
+          
+          if (isAgentMessage && aiMessageKey) {
+            aiMessageCache.set(aiMessageKey, { 
+              timestamp: Date.now(), 
+              processed: true 
+            });
+            console.log(`🔒 AI MESSAGE CACHED: "${data.body.slice(0, 30)}..." from agent "${agentFromSender?.name}"`);
+          }
+        } else {
+          console.log(`🚫 Não foi possível determinar conexão de origem`);
+          return;
+        }
       } else {
         // Skip external messages and duplicates - we only want inter-connection messages
         if (!senderConnection && !data.fromMe) {
-          console.log(`🚫 Ignorando mensagem externa para: ${connections.find(c => c.id === data.connectionId)?.name}`);
+          console.log(`🚫 Ignorando mensagem externa para: ${receivingConnection?.name} (${allConnectedIds.length} conexões)`);
         } else {
           console.log(`⏭️  Ignorando duplicata: ${senderConnection?.name || 'desconhecido'} (própria mensagem)`);
         }
