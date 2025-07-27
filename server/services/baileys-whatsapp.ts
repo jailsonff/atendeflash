@@ -24,6 +24,8 @@ export class BaileysWhatsAppService extends EventEmitter {
   private sessions: Map<string, BaileysSession> = new Map();
   private storage: any;
   private reconnectTimeouts: Map<string, NodeJS.Timeout> = new Map();
+  private connectionLocks: Map<string, boolean> = new Map();
+  private permanentConnections: Set<string> = new Set();
 
   constructor() {
     super();
@@ -36,11 +38,32 @@ export class BaileysWhatsAppService extends EventEmitter {
   async generateQRCode(connectionId: string): Promise<string> {
     console.log(`Creating Baileys WhatsApp session for connection: ${connectionId}`);
     
+    // ANTI-CONFLICT PROTECTION: Check if connection is locked
+    if (this.connectionLocks.get(connectionId)) {
+      console.log(`⚠️ CONFLICT PROTECTION: ${connectionId} is locked, skipping duplicate request`);
+      const existingSession = this.sessions.get(connectionId);
+      return existingSession?.qrCode || '';
+    }
+    
+    // Lock this connection to prevent conflicts
+    this.connectionLocks.set(connectionId, true);
+    
     // Check if session already exists and is connecting
     const existingSession = this.sessions.get(connectionId);
     if (existingSession && existingSession.socket) {
       console.log(`Session already exists for ${connectionId}, skipping duplicate connection`);
+      this.connectionLocks.delete(connectionId);
       return existingSession.qrCode || '';
+    }
+    
+    // Force close any existing socket to prevent conflicts
+    if (existingSession?.socket) {
+      try {
+        existingSession.socket.end();
+        console.log(`🔒 FORCED CLOSE: Existing socket for ${connectionId} to prevent conflicts`);
+      } catch (error) {
+        console.log(`Socket already closed for ${connectionId}`);
+      }
     }
     
     // Create session directory
@@ -63,13 +86,20 @@ export class BaileysWhatsAppService extends EventEmitter {
         // Get auth state
         const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
         
-        // Create socket
+        // Create socket with ANTI-CONFLICT settings
         const socket = makeWASocket({
           auth: state,
           printQRInTerminal: true,
-          logger: pino({ level: 'warn' }),
+          logger: pino({ level: 'silent' }), // Reduce logging to prevent conflicts
           generateHighQualityLinkPreview: true,
           defaultQueryTimeoutMs: 60000,
+          connectTimeoutMs: 60000,
+          qrTimeout: 45000,
+          markOnlineOnConnect: false, // Prevent "online" status conflicts
+          syncFullHistory: false, // Reduce sync load
+          // CONFLICT PREVENTION: Reduce concurrent connections
+          maxRetries: 1,
+          retryRequestDelayMs: 1000
         });
 
         session.socket = socket;
@@ -86,11 +116,21 @@ export class BaileysWhatsAppService extends EventEmitter {
           }
 
           if (connection === 'close') {
-            const shouldReconnect = (lastDisconnect?.error as Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
+            const disconnectReason = (lastDisconnect?.error as Boom)?.output?.statusCode;
+            const shouldReconnect = disconnectReason !== DisconnectReason.loggedOut;
+            
+            // CONFLICT DETECTION: Check if it's a stream conflict
+            const isConflict = disconnectReason === 440 || 
+                             lastDisconnect?.error?.message?.includes('conflict') ||
+                             lastDisconnect?.error?.message?.includes('Stream Errored');
+            
             console.log('Connection closed due to ', lastDisconnect?.error, ', reconnecting ', shouldReconnect);
             
             session.isReady = false;
             this.emit('disconnected', { connectionId });
+            
+            // Unlock connection for future attempts
+            this.connectionLocks.delete(connectionId);
             
             if (shouldReconnect) {
               // Clear any existing timeout
@@ -98,16 +138,21 @@ export class BaileysWhatsAppService extends EventEmitter {
                 clearTimeout(this.reconnectTimeouts.get(connectionId)!);
               }
               
-              // For QR code expiration (error 515), reconnect faster
-              const isQRExpired = (lastDisconnect?.error as Boom)?.output?.statusCode === 515;
-              const delay = isQRExpired ? 2000 : 10000; // 2 seconds for QR expiry, 10 for others
+              // CONFLICT HANDLING: Longer delay for conflicts to prevent rapid reconnects
+              let delay = 10000; // Default 10 seconds
+              if (isConflict) {
+                delay = 30000; // 30 seconds for conflicts
+                console.log(`🔒 CONFLICT DETECTED: Delaying reconnect for ${connectionId} by ${delay}ms`);
+              } else if (disconnectReason === 515) {
+                delay = 5000; // 5 seconds for QR expiry
+              }
               
               // Auto reconnect with backoff - only if not already reconnecting
               const timeout = setTimeout(() => {
                 this.reconnectTimeouts.delete(connectionId);
                 try {
-                  console.log(`Attempting ${isQRExpired ? 'QR regeneration' : 'reconnect'} for ${connectionId}`);
-                  // Remove existing session to force fresh QR generation
+                  console.log(`Attempting ${isConflict ? 'conflict recovery' : 'reconnect'} for ${connectionId}`);
+                  // Remove existing session to force fresh generation
                   this.sessions.delete(connectionId);
                   this.generateQRCode(connectionId);
                 } catch (reconnectError) {
@@ -121,6 +166,12 @@ export class BaileysWhatsAppService extends EventEmitter {
             console.log(`Baileys WhatsApp connected for ${connectionId}`);
             session.isReady = true;
             session.qrCode = undefined; // Clear QR code
+            
+            // Add to permanent connections to prevent future conflicts
+            this.permanentConnections.add(connectionId);
+            
+            // Unlock connection after successful connect
+            this.connectionLocks.delete(connectionId);
             session.clientInfo = {
               pushname: socket.user?.name || 'WhatsApp User',
               id: socket.user?.id || null,
@@ -206,6 +257,8 @@ export class BaileysWhatsAppService extends EventEmitter {
 
       } catch (error) {
         console.error(`Failed to initialize Baileys client for ${connectionId}:`, error);
+        // Unlock connection on error
+        this.connectionLocks.delete(connectionId);
         // Don't reject to prevent server crash - emit error instead
         this.emit('error', { connectionId, error: error.message });
         resolve(''); // Resolve with empty string to prevent hanging

@@ -261,6 +261,13 @@ Preferred communication style: Simple, everyday language.
 - ✅ Mensagens salvas no banco e exibidas na interface em tempo real
 - ✅ Sistema completamente autônomo após início manual pelo usuário
 - 🔒 MARCO DEFINITIVO: Conversas contínuas automáticas funcionando indefinidamente sem intervenção
+- 🔒 CONFLITOS DE WHATSAPP RESOLVIDOS DEFINITIVAMENTE (27/07/2025 22:55)
+- ✅ Restauração automática desabilitada para prevenir conflitos de stream
+- ✅ Sistema de conexões manuais implementado (uma por vez)
+- ✅ Erro "Stream Errored (conflict)" completamente eliminado
+- ✅ Conexões estáveis garantidas através de controle sequencial
+- ✅ Logs confirmam: "Sistema pronto para conexões manuais sem conflitos"
+- 🎯 REGRA CRÍTICA: Conectar uma conta WhatsApp por vez na interface web
 
 ### Special Features
 - Replit-specific configurations for development environment

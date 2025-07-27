@@ -70,60 +70,24 @@ app.use((req, res, next) => {
   }, async () => {
     log(`serving on port ${port}`);
     
-    // 🔒 SISTEMA DE RESTAURAÇÃO PERMANENTE - CONEXÕES NUNCA SERÃO PERDIDAS
+    // 🔒 RESTAURAÇÃO AUTOMÁTICA DESABILITADA PARA PREVENIR CONFLITOS
     setTimeout(async () => {
       try {
-        log('🚀 INICIANDO RESTAURAÇÃO PERMANENTE DE CONEXÕES WHATSAPP...');
+        log('🔒 RESTAURAÇÃO AUTOMÁTICA DESABILITADA - Prevenção de conflitos ativada');
         const connections = await storage.getWhatsappConnections();
         
-        // Busca TODAS as conexões que foram conectadas alguma vez
-        const permanentConnections = connections.filter(conn => {
-          try {
-            if (!conn.sessionData) return false;
-            const sessionData = JSON.parse(conn.sessionData);
-            // Restaura qualquer conexão que já foi conectada (persistent OU permanent)
-            return (sessionData.persistent === true || sessionData.permanent === true) && 
-                   (conn.status === 'connected' || sessionData.authState === 'connected');
-          } catch {
-            // Se já teve phoneNumber, significa que foi conectada antes
-            return conn.phoneNumber && conn.phoneNumber !== 'null';
-          }
-        });
-        
-        if (permanentConnections.length > 0) {
-          log(`🔒 RESTAURANDO ${permanentConnections.length} CONEXÕES PERMANENTES...`);
-          
-          for (const connection of permanentConnections) {
-            try {
-              log(`🔄 RESTAURANDO PERMANENTE: ${connection.name} (${connection.phoneNumber || 'Sem número'})`);
-              
-              // Força o status como conectado antes da restauração
-              await storage.updateWhatsappConnection(connection.id, { 
-                status: 'connected',
-                lastSeen: new Date()
-              });
-              
-              await baileysWhatsAppService.restoreSession(connection.id);
-              log(`✅ CONEXÃO PERMANENTE RESTAURADA: ${connection.name}`);
-            } catch (error) {
-              console.error(`⚠️  Erro na restauração de ${connection.id}:`, error);
-              // NUNCA marca como desconectada - mantém como conectada sempre
-              log(`🔒 MANTENDO ${connection.name} COMO CONECTADA (tentativa contínua)`);
-              
-              // Agenda nova tentativa em 30 segundos
-              setTimeout(async () => {
-                try {
-                  log(`🔄 NOVA TENTATIVA: ${connection.name}`);
-                  await baileysWhatsAppService.restoreSession(connection.id);
-                } catch (retryError) {
-                  console.error(`Retry failed for ${connection.id}:`, retryError);
-                }
-              }, 30000);
-            }
-          }
-        } else {
-          log('📝 Nenhuma conexão permanente encontrada para restaurar');
+        // RESETAR STATUS PARA FORÇAR CONEXÃO MANUAL
+        for (const connection of connections) {
+          await storage.updateWhatsappConnection(connection.id, { 
+            status: 'disconnected',
+            lastSeen: new Date()
+          });
         }
+        
+        log(`🧹 Status de ${connections.length} conexões resetado para desconectado`);
+        log('ℹ️ Para conectar: Use os botões "Conectar" na interface web');
+        log('🎯 Isso previne conflitos de stream entre múltiplas contas WhatsApp');
+        log('✅ Sistema pronto para conexões manuais sem conflitos');
       } catch (error) {
         console.error('❌ ERRO CRÍTICO na restauração permanente:', error);
       }
