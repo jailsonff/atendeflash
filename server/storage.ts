@@ -25,6 +25,9 @@ export interface IStorage {
   getConversation(fromId: string, toId: string): Promise<Message[]>;
   createMessage(message: InsertMessage): Promise<Message>;
   deleteMessage(id: string): Promise<void>;
+  // Deduplication
+  findDuplicateMessages(): Promise<Message[][]>;
+  removeDuplicateMessages(): Promise<number>;
 
   // AI Agents
   getAiAgents(): Promise<AiAgent[]>;
@@ -134,6 +137,53 @@ export class MemStorage implements IStorage {
 
   async deleteMessage(id: string): Promise<void> {
     this.messages.delete(id);
+  }
+
+  // Deduplication Functions for MemStorage
+  async findDuplicateMessages(): Promise<Message[][]> {
+    const allMessages = Array.from(this.messages.values()).sort((a, b) => 
+      new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
+    const duplicates: Message[][] = [];
+    const processed = new Set<string>();
+
+    for (const message of allMessages) {
+      if (processed.has(message.id)) continue;
+      
+      // Find messages with same content, same connections, within 1 minute
+      const similar = allMessages.filter(msg => 
+        msg.id !== message.id &&
+        msg.content.trim() === message.content.trim() &&
+        msg.fromConnectionId === message.fromConnectionId &&
+        msg.toConnectionId === message.toConnectionId &&
+        Math.abs(new Date(msg.timestamp).getTime() - new Date(message.timestamp).getTime()) < 60000 // 1 minute
+      );
+
+      if (similar.length > 0) {
+        const group = [message, ...similar];
+        duplicates.push(group);
+        group.forEach(msg => processed.add(msg.id));
+      }
+    }
+
+    return duplicates;
+  }
+
+  async removeDuplicateMessages(): Promise<number> {
+    const duplicateGroups = await this.findDuplicateMessages();
+    let removedCount = 0;
+
+    for (const group of duplicateGroups) {
+      // Keep the oldest message (first in group), remove the rest
+      const toRemove = group.slice(1);
+      
+      for (const message of toRemove) {
+        this.messages.delete(message.id);
+        removedCount++;
+      }
+    }
+
+    return removedCount;
   }
 
   async getAiAgents(): Promise<AiAgent[]> {
@@ -307,6 +357,51 @@ export class DatabaseStorage implements IStorage {
 
   async deleteMessage(id: string): Promise<void> {
     await db.delete(messages).where(eq(messages.id, id));
+  }
+
+  // Deduplication Functions
+  async findDuplicateMessages(): Promise<Message[][]> {
+    const allMessages = await this.getMessages();
+    const duplicates: Message[][] = [];
+    const processed = new Set<string>();
+
+    for (const message of allMessages) {
+      if (processed.has(message.id)) continue;
+      
+      // Find messages with same content, same connections, within 1 minute
+      const similar = allMessages.filter(msg => 
+        msg.id !== message.id &&
+        msg.content.trim() === message.content.trim() &&
+        msg.fromConnectionId === message.fromConnectionId &&
+        msg.toConnectionId === message.toConnectionId &&
+        Math.abs(new Date(msg.timestamp).getTime() - new Date(message.timestamp).getTime()) < 60000 // 1 minute
+      );
+
+      if (similar.length > 0) {
+        const group = [message, ...similar];
+        duplicates.push(group);
+        group.forEach(msg => processed.add(msg.id));
+      }
+    }
+
+    return duplicates;
+  }
+
+  async removeDuplicateMessages(): Promise<number> {
+    const duplicateGroups = await this.findDuplicateMessages();
+    let removedCount = 0;
+
+    for (const group of duplicateGroups) {
+      // Keep the oldest message (first in group), remove the rest
+      const toRemove = group.slice(1);
+      
+      for (const message of toRemove) {
+        await this.deleteMessage(message.id);
+        removedCount++;
+      }
+    }
+
+    return removedCount;
   }
 
   // AI Agents

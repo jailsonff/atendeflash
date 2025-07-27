@@ -114,6 +114,27 @@ export default function Conversas() {
     },
   });
 
+  const deduplicateMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/messages/deduplicate");
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/messages"] });
+      toast({
+        title: "Deduplicação concluída",
+        description: `${data.removedCount} mensagens duplicadas foram removidas automaticamente.`,
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro na deduplicação",
+        description: (error as Error).message,
+        variant: "destructive",
+      });
+    },
+  });
+
   // Scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -177,11 +198,34 @@ export default function Conversas() {
     <>
       {/* Header */}
       <header className="bg-card border-b border-border px-6 py-4">
-        <div>
-          <h2 className="text-2xl font-bold text-foreground">Conversas</h2>
-          <p className="text-muted-foreground text-sm">
-            Chat em tempo real entre conexões do sistema
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-foreground">Conversas</h2>
+            <p className="text-muted-foreground text-sm">
+              Chat em tempo real entre conexões do sistema
+            </p>
+          </div>
+          <div className="flex items-center space-x-3">
+            <Button
+              onClick={() => deduplicateMutation.mutate()}
+              disabled={deduplicateMutation.isPending}
+              variant="outline"
+              size="sm"
+              className="border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/20"
+            >
+              {deduplicateMutation.isPending ? (
+                <>
+                  <i className="fas fa-spinner animate-spin mr-2"></i>
+                  Removendo...
+                </>
+              ) : (
+                <>
+                  <i className="fas fa-broom mr-2"></i>
+                  Remover Duplicatas
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </header>
 

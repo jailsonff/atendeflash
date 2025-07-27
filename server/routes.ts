@@ -448,6 +448,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Auto-deduplication endpoint
+  app.post("/api/messages/deduplicate", async (req, res) => {
+    try {
+      console.log('🔍 STARTING AUTOMATIC DEDUPLICATION...');
+      
+      // Find duplicates first to show what will be removed
+      const duplicates = await storage.findDuplicateMessages();
+      console.log(`🔍 FOUND ${duplicates.length} duplicate groups containing ${duplicates.reduce((sum, group) => sum + group.length, 0)} messages`);
+      
+      // Remove duplicates
+      const removedCount = await storage.removeDuplicateMessages();
+      
+      console.log(`🔒 DEDUPLICATION COMPLETE: Removed ${removedCount} duplicate messages`);
+      
+      // Broadcast update to refresh UI
+      broadcast('messages_deduplicated', { 
+        removedCount,
+        duplicateGroups: duplicates.length
+      });
+      
+      res.json({ 
+        success: true, 
+        removedCount,
+        duplicateGroups: duplicates.length,
+        message: `Removidas ${removedCount} mensagens duplicadas em ${duplicates.length} grupos`
+      });
+    } catch (error) {
+      console.error('Error during deduplication:', error);
+      res.status(500).json({ message: "Erro na deduplicação: " + (error as Error).message });
+    }
+  });
+
   app.post("/api/messages", async (req, res) => {
     try {
       const messageData = insertMessageSchema.parse(req.body);
@@ -713,5 +745,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Start automatic deduplication system
+  startAutomaticDeduplication();
+
   return httpServer;
+}
+
+// Automatic deduplication system - runs every 5 minutes
+function startAutomaticDeduplication() {
+  console.log("🤖 SISTEMA DE DEDUPLICAÇÃO AUTOMÁTICA INICIADO (executa a cada 5 minutos)");
+  
+  setInterval(async () => {
+    try {
+      console.log('🔍 EXECUTANDO DEDUPLICAÇÃO AUTOMÁTICA...');
+      
+      const duplicates = await storage.findDuplicateMessages();
+      if (duplicates.length === 0) {
+        console.log('✅ DEDUPLICAÇÃO: Nenhuma duplicata encontrada');
+        return;
+      }
+      
+      const removedCount = await storage.removeDuplicateMessages();
+      console.log(`🔒 DEDUPLICAÇÃO AUTOMÁTICA: Removidas ${removedCount} mensagens duplicadas automaticamente`);
+      
+      // Broadcast to update UI
+      broadcast('messages_deduplicated', { 
+        removedCount,
+        duplicateGroups: duplicates.length,
+        automatic: true
+      });
+      
+    } catch (error) {
+      console.error('❌ ERRO NA DEDUPLICAÇÃO AUTOMÁTICA:', error);
+    }
+  }, 5 * 60 * 1000); // 5 minutes
 }
