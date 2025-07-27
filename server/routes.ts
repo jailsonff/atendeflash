@@ -4,6 +4,101 @@ import { Server as SocketIOServer } from "socket.io";
 import { storage } from "./storage";
 import { baileysWhatsAppService } from "./services/baileys-whatsapp";
 import { openaiService } from "./services/openai";
+
+// SISTEMA DE CONVERSAS CONTÍNUAS AUTOMÁTICAS
+let continuousConversationInterval: NodeJS.Timeout | null = null;
+const CONVERSATION_INTERVAL = 45000; // 45 segundos entre mensagens automáticas
+
+// Função para iniciar conversas contínuas entre agentes  
+async function startContinuousConversations(broadcastFn?: (event: string, data: any) => void) {
+  if (continuousConversationInterval) {
+    clearInterval(continuousConversationInterval);
+  }
+  
+  console.log(`🔄 SISTEMA DE CONVERSAS CONTÍNUAS INICIADO (intervalo: ${CONVERSATION_INTERVAL/1000}s)`);
+  
+  continuousConversationInterval = setInterval(async () => {
+    try {
+      const connections = await storage.getWhatsappConnections();
+      const activeConnections = connections.filter(c => c.status === 'connected');
+      
+      if (activeConnections.length !== 2) {
+        console.log(`⏭️ CONVERSAS CONTÍNUAS: Aguardando 2 conexões ativas (atual: ${activeConnections.length})`);
+        return;
+      }
+      
+      const [conn1, conn2] = activeConnections;
+      const agent1 = await storage.getAiAgentByConnection(conn1.id);
+      const agent2 = await storage.getAiAgentByConnection(conn2.id);
+      
+      if (!agent1 || !agent2 || !agent1.isActive || !agent2.isActive || agent1.isPaused || agent2.isPaused) {
+        console.log(`⏭️ CONVERSAS CONTÍNUAS: Aguardando agentes ativos (${agent1?.name}: ${agent1?.isActive && !agent1?.isPaused}, ${agent2?.name}: ${agent2?.isActive && !agent2?.isPaused})`);
+        return;
+      }
+      
+      // Verificar última mensagem para evitar spam
+      const recentMessages = await storage.getConversation(conn1.id, conn2.id);
+      const lastMessage = recentMessages[recentMessages.length - 1];
+      
+      if (lastMessage && (Date.now() - new Date(lastMessage.timestamp).getTime()) < 30000) {
+        console.log(`⏭️ CONVERSAS CONTÍNUAS: Aguardando intervalo (última mensagem há ${Math.round((Date.now() - new Date(lastMessage.timestamp).getTime())/1000)}s)`);
+        return;
+      }
+      
+      // Escolher agente aleatório para iniciar conversa
+      const initiatorAgent = Math.random() > 0.5 ? agent1 : agent2;
+      const targetConnection = initiatorAgent.id === agent1.id ? conn2 : conn1;
+      const initiatorConnection = initiatorAgent.id === agent1.id ? conn1 : conn2;
+      
+      console.log(`🤖 CONVERSAS CONTÍNUAS: ${initiatorAgent.name} iniciando conversa com ${targetConnection.name}`);
+      
+      // Gerar tópicos de conversa aleatórios
+      const topics = [
+        "Como está seu dia hoje?",
+        "O que você tem feito ultimamente?",
+        "Tem alguma novidade interessante?",
+        "Como você está se sentindo?",
+        "Quer conversar sobre algo específico?",
+        "O que acha de falarmos sobre nossos hobbies?",
+        "Tem algum plano para hoje?",
+        "Como foi sua semana?",
+        "Quer contar alguma história interessante?",
+        "O que tem te deixado feliz ultimamente?"
+      ];
+      
+      const randomTopic = topics[Math.floor(Math.random() * topics.length)];
+      
+      // Criar mensagem de início de conversa
+      const messageData = {
+        fromConnectionId: initiatorConnection.id,
+        toConnectionId: targetConnection.id,
+        content: randomTopic,
+        messageType: 'text' as const,
+        isFromAgent: true,
+        agentId: initiatorAgent.id
+      };
+      
+      const message = await storage.createMessage(messageData);
+      if (broadcastFn) {
+        broadcastFn('message_received', message);
+      }
+      
+      // Enviar via WhatsApp
+      if (targetConnection.phoneNumber && baileysWhatsAppService.isConnected(initiatorConnection.id)) {
+        await baileysWhatsAppService.sendMessage(
+          initiatorConnection.id,
+          targetConnection.phoneNumber,
+          randomTopic
+        );
+        console.log(`🚀 CONVERSAS CONTÍNUAS: Mensagem enviada "${randomTopic}" de ${initiatorAgent.name} para ${targetConnection.name}`);
+      }
+      
+    } catch (error) {
+      console.error('❌ Erro no sistema de conversas contínuas:', error);
+    }
+  }, CONVERSATION_INTERVAL);
+}
+
 import { 
   insertWhatsappConnectionSchema,
   insertMessageSchema,
@@ -155,6 +250,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       status: 'connected',
       phoneNumber: data.phoneNumber 
     });
+    
+    // Iniciar conversas contínuas quando 2 conexões estiverem ativas
+    const connections = await storage.getWhatsappConnections();
+    const activeConnections = connections.filter(c => c.status === 'connected');
+    if (activeConnections.length === 2) {
+      console.log('🎯 2 CONEXÕES ATIVAS DETECTADAS - Iniciando sistema de conversas contínuas');
+      startContinuousConversations(broadcast);
+    }
   });
 
   baileysWhatsAppService.on('disconnected', async (data) => {
