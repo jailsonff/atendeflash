@@ -235,6 +235,13 @@ Preferred communication style: Simple, everyday language.
 - ✅ Logs melhorados: "🚫 Ignorando mensagem de GRUPO" para maior clareza
 - ✅ Sistema agora requer início manual pelo usuário antes de conversas automáticas
 - 🔐 REGRA FUNDAMENTAL: Apenas mensagens diretas entre conexões conectadas disparam agentes IA
+- ✅ CONVERSAS CONTÍNUAS CORRIGIDAS (27/07/2025 21:40)
+- ✅ Sistema corrigido para detectar mensagens da interface como inter-conexões
+- ✅ Endpoint /api/messages atualizado para criar mensagens e disparar agentes IA
+- ✅ Conversas automáticas funcionando: Gabriel responde em 11s, Andreia em 19s
+- ✅ Sistema de cache robusto evita loops e duplicatas perfeitamente
+- ✅ Teste confirmado: "Posso contar uma história?" → "Claro! Adoro histórias. Conte-me! 😊"
+- ✅ Agentes ANDREIA e GABRIEL conversando automaticamente após início manual
 
 ### Special Features
 - Replit-specific configurations for development environment
