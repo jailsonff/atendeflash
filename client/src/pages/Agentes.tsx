@@ -21,6 +21,7 @@ interface AiAgent {
   persona: string;
   temperature?: number;
   responseTime?: number; // Response time in milliseconds
+  messagesPerResponse?: number; // Number of messages per response
   connectionId?: string;
   isActive?: boolean;
   messageCount?: number;
@@ -44,6 +45,7 @@ export default function Agentes() {
     persona: "",
     temperature: 70,
     responseTime: 2000, // Default 2 seconds
+    messagesPerResponse: 1, // Default 1 message per response
     connectionId: "",
     isActive: true,
   });
@@ -141,6 +143,7 @@ export default function Agentes() {
       persona: "",
       temperature: 70,
       responseTime: 2000, // Default 2 seconds
+      messagesPerResponse: 1, // Default 1 message per response
       connectionId: "",
       isActive: true,
     });
@@ -154,6 +157,7 @@ export default function Agentes() {
       persona: agent.persona,
       temperature: agent.temperature || 70,
       responseTime: agent.responseTime || 2000,
+      messagesPerResponse: agent.messagesPerResponse || 1,
       connectionId: agent.connectionId || "",
       isActive: agent.isActive || true,
     });
@@ -324,6 +328,26 @@ export default function Agentes() {
                   </div>
                 </div>
 
+                <div>
+                  <Label htmlFor="messagesPerResponse" className="text-gray-300">
+                    Quantidade de Mensagens ({agentForm.messagesPerResponse} {agentForm.messagesPerResponse === 1 ? 'mensagem' : 'mensagens'} por resposta)
+                  </Label>
+                  <div className="mt-2">
+                    <Slider
+                      value={[agentForm.messagesPerResponse]}
+                      onValueChange={(value) => setAgentForm(prev => ({ ...prev, messagesPerResponse: value[0] }))}
+                      max={10} // Maximum 10 messages
+                      min={1} // Minimum 1 message
+                      step={1} // 1 message steps
+                      className="w-full"
+                    />
+                    <div className="flex justify-between text-xs text-gray-400 mt-1">
+                      <span>1 mensagem</span>
+                      <span>10 mensagens</span>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="flex items-center space-x-3">
                   <Switch
                     checked={agentForm.isActive}
@@ -421,7 +445,7 @@ export default function Agentes() {
                           </span>
                         </div>
                         <div>
-                          <span className="text-gray-400">Mensagens:</span>
+                          <span className="text-gray-400">Enviadas:</span>
                           <span className="text-white font-medium ml-1">
                             {agent.messageCount || 0}
                           </span>
@@ -433,6 +457,12 @@ export default function Agentes() {
                               ? `${Math.floor((agent.responseTime || 2000) / 60000)}min ` 
                               : ''
                             }{Math.floor(((agent.responseTime || 2000) % 60000) / 1000)}s
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-gray-400">Por resposta:</span>
+                          <span className="text-yellow-400 font-medium ml-1">
+                            {agent.messagesPerResponse || 1} msg{(agent.messagesPerResponse || 1) > 1 ? 's' : ''}
                           </span>
                         </div>
                       </div>

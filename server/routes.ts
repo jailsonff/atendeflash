@@ -203,43 +203,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 agent.persona,
                 messageData.content,
                 (agent.temperature || 70) / 100,
-                conversationHistory.slice(-10).map(m => m.content)
+                conversationHistory.slice(-10).map(m => m.content),
+                agent.messagesPerResponse || 1
               );
 
-              // Create AI response message - WEBSOCKET VERSION
-              const aiMessage = await storage.createMessage({
-                fromConnectionId: messageData.toConnectionId,
-                toConnectionId: messageData.fromConnectionId,
-                content: response.message,
-                messageType: 'text',
-                isFromAgent: true, // CRITICAL: Mark as AI message to prevent infinite loops
-                agentId: agent.id
-              });
+              // Send multiple messages if configured
+              const messagesToSend = response.messages;
+              const createdMessages = [];
 
-              // CRITICAL: Add to cache to prevent infinite loops when message comes back from WhatsApp
-              recentAiResponses.set(response.message, Date.now());
-              console.log(`🔒 CACHE: Added AI response to loop prevention cache: "${response.message.slice(0, 50)}..."`);;
+              for (let i = 0; i < messagesToSend.length; i++) {
+                const messageContent = messagesToSend[i];
+                
+                // Create AI response message - WEBSOCKET VERSION
+                const aiMessage = await storage.createMessage({
+                  fromConnectionId: messageData.toConnectionId,
+                  toConnectionId: messageData.fromConnectionId,
+                  content: messageContent,
+                  messageType: 'text',
+                  isFromAgent: true, // CRITICAL: Mark as AI message to prevent infinite loops
+                  agentId: agent.id
+                });
 
-              // Update agent message count
-              await storage.updateAiAgent(agent.id, {
-                messageCount: (agent.messageCount || 0) + 1
-              });
+                createdMessages.push(aiMessage);
 
-              // Send AI response via WhatsApp
-              if (messageData.fromConnectionId) {
-                const fromConnection = await storage.getWhatsappConnection(messageData.fromConnectionId);
-                if (fromConnection && fromConnection.phoneNumber && baileysWhatsAppService.isConnected(messageData.toConnectionId)) {
-                  console.log(`🚀 Sending AI response from ${agent.name} to ${fromConnection.phoneNumber}: "${response.message}"`);
-                  await baileysWhatsAppService.sendMessage(
-                    messageData.toConnectionId,
-                    fromConnection.phoneNumber,
-                    response.message
-                  );
+                // CRITICAL: Add to cache to prevent infinite loops when message comes back from WhatsApp
+                recentAiResponses.set(messageContent, Date.now());
+                console.log(`🔒 CACHE: Added AI response ${i+1}/${messagesToSend.length} to loop prevention cache: "${messageContent.slice(0, 50)}..."`);
+
+                // Send AI response via WhatsApp with small delay between messages
+                if (messageData.fromConnectionId) {
+                  const fromConnection = await storage.getWhatsappConnection(messageData.fromConnectionId);
+                  if (fromConnection && fromConnection.phoneNumber && baileysWhatsAppService.isConnected(messageData.toConnectionId)) {
+                    console.log(`🚀 Sending AI response ${i+1}/${messagesToSend.length} from ${agent.name} to ${fromConnection.phoneNumber}: "${messageContent}"`);
+                    await baileysWhatsAppService.sendMessage(
+                      messageData.toConnectionId,
+                      fromConnection.phoneNumber,
+                      messageContent
+                    );
+                    
+                    // Small delay between multiple messages (500ms)
+                    if (i < messagesToSend.length - 1) {
+                      await new Promise(resolve => setTimeout(resolve, 500));
+                    }
+                  }
                 }
+
+                broadcast('ai_response', aiMessage);
               }
 
-              broadcast('ai_response', aiMessage);
-              console.log(`✅ WEBSOCKET: AI Agent ${agent.name} responded successfully after ${responseTime}ms individual delay`);
+              // Update agent message count (count all messages sent)
+              await storage.updateAiAgent(agent.id, {
+                messageCount: (agent.messageCount || 0) + messagesToSend.length
+              });
+
+              console.log(`✅ WEBSOCKET: AI Agent ${agent.name} sent ${messagesToSend.length} messages successfully after ${responseTime}ms individual delay`);
             } catch (error) {
               console.error(`❌ AI response error for agent ${agent.name}:`, error);
             }
@@ -554,42 +571,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 agent.persona,
                 messageData.content,
                 (agent.temperature || 70) / 100,
-                conversationHistory.slice(-10).map(m => m.content)
+                conversationHistory.slice(-10).map(m => m.content),
+                agent.messagesPerResponse || 1
               );
 
-              // Create AI response message - API VERSION
-              const aiMessage = await storage.createMessage({
-                fromConnectionId: messageData.toConnectionId,
-                toConnectionId: messageData.fromConnectionId,
-                content: response.message,
-                messageType: 'text',
-                isFromAgent: true, // CRITICAL: Mark as AI message to prevent infinite loops
-                agentId: agent.id
-              });
+              // Send multiple messages if configured
+              const messagesToSend = response.messages;
 
-              // CRITICAL: Add to cache to prevent infinite loops when message comes back from WhatsApp
-              recentAiResponses.set(response.message, Date.now());
-              console.log(`🔒 CACHE: Added AI response to loop prevention cache: "${response.message.slice(0, 50)}..."`);;
+              for (let i = 0; i < messagesToSend.length; i++) {
+                const messageContent = messagesToSend[i];
+                
+                // Create AI response message - API VERSION
+                const aiMessage = await storage.createMessage({
+                  fromConnectionId: messageData.toConnectionId,
+                  toConnectionId: messageData.fromConnectionId,
+                  content: messageContent,
+                  messageType: 'text',
+                  isFromAgent: true, // CRITICAL: Mark as AI message to prevent infinite loops
+                  agentId: agent.id
+                });
 
-              // Update agent message count
-              await storage.updateAiAgent(agent.id, {
-                messageCount: (agent.messageCount || 0) + 1
-              });
+                // CRITICAL: Add to cache to prevent infinite loops when message comes back from WhatsApp
+                recentAiResponses.set(messageContent, Date.now());
+                console.log(`🔒 CACHE: Added AI response ${i+1}/${messagesToSend.length} to loop prevention cache: "${messageContent.slice(0, 50)}..."`);
 
-              // Send AI response via WhatsApp
-              if (messageData.fromConnectionId) {
-                const fromConnection = await storage.getWhatsappConnection(messageData.fromConnectionId);
-                if (fromConnection && fromConnection.phoneNumber && baileysWhatsAppService.isConnected(messageData.toConnectionId)) {
-                  await baileysWhatsAppService.sendMessage(
-                    messageData.toConnectionId,
-                    fromConnection.phoneNumber,
-                    response.message
-                  );
+                // Send AI response via WhatsApp with small delay between messages
+                if (messageData.fromConnectionId) {
+                  const fromConnection = await storage.getWhatsappConnection(messageData.fromConnectionId);
+                  if (fromConnection && fromConnection.phoneNumber && baileysWhatsAppService.isConnected(messageData.toConnectionId)) {
+                    await baileysWhatsAppService.sendMessage(
+                      messageData.toConnectionId,
+                      fromConnection.phoneNumber,
+                      messageContent
+                    );
+                    
+                    // Small delay between multiple messages (500ms)
+                    if (i < messagesToSend.length - 1) {
+                      await new Promise(resolve => setTimeout(resolve, 500));
+                    }
+                  }
                 }
+
+                broadcast('ai_response', aiMessage);
               }
 
-              broadcast('ai_response', aiMessage);
-              console.log(`✅ API: AI Agent ${agent.name} responded successfully after ${responseTime}ms individual delay`);
+              // Update agent message count (count all messages sent)
+              await storage.updateAiAgent(agent.id, {
+                messageCount: (agent.messageCount || 0) + messagesToSend.length
+              });
+
+              console.log(`✅ API: AI Agent ${agent.name} sent ${messagesToSend.length} messages successfully after ${responseTime}ms individual delay`);
             } catch (error) {
               console.error('AI response error:', error);
             }

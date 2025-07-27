@@ -193,6 +193,20 @@ Preferred communication style: Simple, everyday language.
 - ✅ Limpeza automática do cache após 1 minuto para otimizar performance
 - ✅ Logs confirmam: "Ignorando duplicata" funcionando perfeitamente
 - ✅ Sistema elimina completamente duplicatas entre API e WhatsApp
+- 📊 SISTEMA DE DEDUPLICAÇÃO AUTOMÁTICA IMPLEMENTADO (27/07/2025 19:47)
+- ✅ API de deduplicação que detecta mensagens duplicadas automaticamente
+- ✅ Algoritmo inteligente que identifica duplicatas por conteúdo, conexões e tempo
+- ✅ Sistema automático que executa a cada 5 minutos
+- ✅ Botão "Remover Duplicatas" na interface para limpeza manual
+- ✅ Teste confirmado: 23 mensagens duplicadas removidas automaticamente
+- ✅ Layout do botão da lixeira corrigido para aparecer sempre
+- 🎯 QUANTIDADE DE MENSAGENS POR RESPOSTA IMPLEMENTADA (27/07/2025 19:49)
+- ✅ Campo "messagesPerResponse" adicionado no schema dos agentes (1-10 mensagens)
+- ✅ Interface com slider para configurar quantidade de mensagens por agente
+- ✅ Sistema OpenAI atualizado para gerar múltiplas mensagens separadas
+- ✅ Backend processa e envia múltiplas mensagens com delay de 500ms entre elas
+- ✅ Cards dos agentes mostram quantidade configurada ("Por resposta: X msgs")
+- ✅ Contador de mensagens atualizado para contar todas as mensagens enviadas
 
 ### Special Features
 - Replit-specific configurations for development environment
