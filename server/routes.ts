@@ -271,7 +271,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
           console.log(`🔒 AI MESSAGE CACHED: "${data.body.slice(0, 30)}..." from agent "${agentFromSender?.name}"`);
         }
-      } else if (false) { // DISABLED: Auto-detection removed to prevent group messages triggering agents
+      } else if (receivingConnection && allConnectedIds.length === 2 && !data.fromMe && 
+                 !data.from.includes('@g.us') && 
+                 data.from.includes('@s.whatsapp.net') &&
+                 allConnectedIds.some(id => {
+                   const conn = connections.find(c => c.id === id);
+                   const phoneNumber = conn?.phoneNumber?.replace(/\D/g, '');
+                   const fromNumber = data.from.replace('@s.whatsapp.net', '');
+                   return phoneNumber && phoneNumber.includes(fromNumber);
+                 })) { // ENABLED: Only for verified inter-connection messages from our connected numbers
         // SPECIAL CASE: When we have exactly 2 connections and message arrives from one of OUR connected numbers
         // This is specifically for AI agent responses that come back through WhatsApp
         // STRICT VERIFICATION: Only accept if the message comes from one of our connected phone numbers
