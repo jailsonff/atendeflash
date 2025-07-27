@@ -17,6 +17,9 @@ const recentAiResponses = new Map<string, number>(); // message content -> times
 // Global cache to track messages sent via API to prevent duplicates when they return from WhatsApp
 const sentMessageCache = new Map<string, { timestamp: number; fromId: string; toId: string }>(); // message content -> metadata
 
+// Enhanced cache to prevent AI message duplicates using unique keys
+const aiMessageCache = new Map<string, { timestamp: number; processed: boolean }>(); // agentId:content:fromId:toId -> metadata
+
 // Helper function to clean old entries from cache (older than 2 minutes)
 const cleanAiResponseCache = () => {
   const now = Date.now();
@@ -33,6 +36,16 @@ const cleanSentMessageCache = () => {
   for (const [content, data] of sentMessageCache.entries()) {
     if (now - data.timestamp > 60000) { // 1 minute
       sentMessageCache.delete(content);
+    }
+  }
+};
+
+// Helper function to clean AI message cache (older than 2 minutes)
+const cleanAiMessageCache = () => {
+  const now = Date.now();
+  for (const [key, data] of aiMessageCache.entries()) {
+    if (now - data.timestamp > 120000) { // 2 minutes
+      aiMessageCache.delete(key);
     }
   }
 };
@@ -119,6 +132,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // 🔒 CHECK FOR DUPLICATE MESSAGE - Skip if this message was sent via API
         cleanSentMessageCache(); // Clean old entries first
+        cleanAiMessageCache(); // Clean AI message cache
         const cachedMessage = sentMessageCache.get(data.body);
         if (cachedMessage && 
             cachedMessage.fromId === senderConnection.id && 
@@ -133,8 +147,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Check if this message is from an AI agent (coming back from WhatsApp)
         // Clean old cache entries first
         cleanAiResponseCache();
+        cleanAiMessageCache();
         
         const agentFromSender = await storage.getAiAgentByConnection(senderConnection.id);
+        
+        // Create unique key for AI message deduplication: agent+content+connections
+        const aiMessageKey = agentFromSender ? 
+          `${agentFromSender.id}:${data.body}:${senderConnection.id}:${data.connectionId}` : null;
+        
+        // Check if this exact AI message was already processed
+        const isKnownAiMessage = aiMessageKey && aiMessageCache.has(aiMessageKey) && 
+          (Date.now() - aiMessageCache.get(aiMessageKey)!.timestamp) < 120000; // Within 2 minutes
+        
+        // Skip known AI messages to prevent duplicates
+        if (isKnownAiMessage) {
+          console.log(`🔒 SKIP AI DUPLICATE: "${data.body.slice(0, 50)}..." from agent "${agentFromSender?.name}" already processed`);
+          return;
+        }
         
         // Check if this exact message content was recently sent by an AI agent
         const isAgentMessage = agentFromSender && agentFromSender.isActive && 
@@ -157,6 +186,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           isFromAgent: isAgentMessage, // Mark as AI message if from an agent connection
           agentId: isAgentMessage ? agentFromSender.id : null
         };
+        
+        // Mark AI message as processed in cache to prevent future duplicates
+        if (isAgentMessage && aiMessageKey) {
+          aiMessageCache.set(aiMessageKey, { 
+            timestamp: Date.now(), 
+            processed: true 
+          });
+          console.log(`🔒 AI MESSAGE CACHED: "${data.body.slice(0, 30)}..." from agent "${agentFromSender?.name}"`);
+        }
       } else {
         // Skip external messages and duplicates - we only want inter-connection messages
         if (!senderConnection && !data.fromMe) {
@@ -228,6 +266,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
                 // CRITICAL: Add to cache to prevent infinite loops when message comes back from WhatsApp
                 recentAiResponses.set(messageContent, Date.now());
+                
+                // Also add to AI message cache with unique key to prevent duplicates
+                const aiMsgKey = `${agent.id}:${messageContent}:${messageData.toConnectionId}:${messageData.fromConnectionId}`;
+                aiMessageCache.set(aiMsgKey, { timestamp: Date.now(), processed: true });
+                
                 console.log(`🔒 CACHE: Added AI response ${i+1}/${messagesToSend.length} to loop prevention cache: "${messageContent.slice(0, 50)}..."`);
 
                 // Send AI response via WhatsApp with small delay between messages
@@ -593,6 +636,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
                 // CRITICAL: Add to cache to prevent infinite loops when message comes back from WhatsApp
                 recentAiResponses.set(messageContent, Date.now());
+                
+                // Also add to AI message cache with unique key to prevent duplicates
+                const aiMsgKey = `${agent.id}:${messageContent}:${messageData.toConnectionId}:${messageData.fromConnectionId}`;
+                aiMessageCache.set(aiMsgKey, { timestamp: Date.now(), processed: true });
+                
                 console.log(`🔒 CACHE: Added AI response ${i+1}/${messagesToSend.length} to loop prevention cache: "${messageContent.slice(0, 50)}..."`);
 
                 // Send AI response via WhatsApp with small delay between messages
@@ -777,13 +825,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Start automatic deduplication system
-  startAutomaticDeduplication();
+  startAutomaticDeduplication(broadcast);
 
   return httpServer;
 }
 
 // Automatic deduplication system - runs every 5 minutes
-function startAutomaticDeduplication() {
+function startAutomaticDeduplication(broadcastFn: (event: string, data: any) => void) {
   console.log("🤖 SISTEMA DE DEDUPLICAÇÃO AUTOMÁTICA INICIADO (executa a cada 5 minutos)");
   
   setInterval(async () => {
@@ -800,7 +848,7 @@ function startAutomaticDeduplication() {
       console.log(`🔒 DEDUPLICAÇÃO AUTOMÁTICA: Removidas ${removedCount} mensagens duplicadas automaticamente`);
       
       // Broadcast to update UI
-      broadcast('messages_deduplicated', { 
+      broadcastFn('messages_deduplicated', { 
         removedCount,
         duplicateGroups: duplicates.length,
         automatic: true
