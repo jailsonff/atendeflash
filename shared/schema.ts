@@ -33,7 +33,7 @@ export const aiAgents = pgTable("ai_agents", {
   persona: text("persona").notNull(),
   temperature: integer("temperature").default(70), // Store as integer (0.7 * 100)
   responseTime: integer("response_time").default(2000), // Response time in milliseconds
-  messagesPerResponse: integer("messages_per_response").default(1), // Number of messages to send per response
+  maxTokens: integer("max_tokens").default(500), // Maximum tokens/characters for responses
   connectionId: varchar("connection_id").references(() => whatsappConnections.id),
   isActive: boolean("is_active").default(true),
   messageCount: integer("message_count").default(0),

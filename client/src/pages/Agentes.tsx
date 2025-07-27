@@ -21,7 +21,7 @@ interface AiAgent {
   persona: string;
   temperature?: number;
   responseTime?: number; // Response time in milliseconds
-  messagesPerResponse?: number; // Number of messages per response
+  maxTokens?: number; // Maximum tokens for responses
   connectionId?: string;
   isActive?: boolean;
   messageCount?: number;
@@ -45,7 +45,7 @@ export default function Agentes() {
     persona: "",
     temperature: 70,
     responseTime: 2000, // Default 2 seconds
-    messagesPerResponse: 1, // Default 1 message per response
+    maxTokens: 500, // Default 500 tokens
     connectionId: "",
     isActive: true,
   });
@@ -143,7 +143,7 @@ export default function Agentes() {
       persona: "",
       temperature: 70,
       responseTime: 2000, // Default 2 seconds
-      messagesPerResponse: 1, // Default 1 message per response
+      maxTokens: 500, // Default 500 tokens
       connectionId: "",
       isActive: true,
     });
@@ -157,7 +157,7 @@ export default function Agentes() {
       persona: agent.persona,
       temperature: agent.temperature || 70,
       responseTime: agent.responseTime || 2000,
-      messagesPerResponse: agent.messagesPerResponse || 1,
+      maxTokens: agent.maxTokens || 500,
       connectionId: agent.connectionId || "",
       isActive: agent.isActive || true,
     });
@@ -329,21 +329,21 @@ export default function Agentes() {
                 </div>
 
                 <div>
-                  <Label htmlFor="messagesPerResponse" className="text-gray-300">
-                    Quantidade de Mensagens ({agentForm.messagesPerResponse} {agentForm.messagesPerResponse === 1 ? 'mensagem' : 'mensagens'} por resposta)
+                  <Label htmlFor="maxTokens" className="text-gray-300">
+                    Limite de Caracteres ({agentForm.maxTokens} caracteres máximo)
                   </Label>
                   <div className="mt-2">
                     <Slider
-                      value={[agentForm.messagesPerResponse]}
-                      onValueChange={(value) => setAgentForm(prev => ({ ...prev, messagesPerResponse: value[0] }))}
-                      max={10} // Maximum 10 messages
-                      min={1} // Minimum 1 message
-                      step={1} // 1 message steps
+                      value={[agentForm.maxTokens]}
+                      onValueChange={(value) => setAgentForm(prev => ({ ...prev, maxTokens: value[0] }))}
+                      max={2000} // Maximum 2000 characters
+                      min={50} // Minimum 50 characters
+                      step={50} // 50 character steps
                       className="w-full"
                     />
                     <div className="flex justify-between text-xs text-gray-400 mt-1">
-                      <span>1 mensagem</span>
-                      <span>10 mensagens</span>
+                      <span>50 chars</span>
+                      <span>2000 chars</span>
                     </div>
                   </div>
                 </div>
@@ -462,7 +462,7 @@ export default function Agentes() {
                         <div>
                           <span className="text-gray-400">Por resposta:</span>
                           <span className="text-yellow-400 font-medium ml-1">
-                            {agent.messagesPerResponse || 1} msg{(agent.messagesPerResponse || 1) > 1 ? 's' : ''}
+                            {agent.maxTokens || 500} chars
                           </span>
                         </div>
                       </div>

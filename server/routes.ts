@@ -204,7 +204,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 messageData.content,
                 (agent.temperature || 70) / 100,
                 conversationHistory.slice(-10).map(m => m.content),
-                agent.messagesPerResponse || 1
+                agent.maxTokens || 500
               );
 
               // Send multiple messages if configured
@@ -256,7 +256,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 messageCount: (agent.messageCount || 0) + messagesToSend.length
               });
 
-              console.log(`✅ WEBSOCKET: AI Agent ${agent.name} sent ${messagesToSend.length} messages successfully after ${responseTime}ms individual delay`);
+              console.log(`✅ WEBSOCKET: AI Agent ${agent.name} sent response (${messagesToSend[0]?.length || 0} chars) successfully after ${responseTime}ms individual delay`);
             } catch (error) {
               console.error(`❌ AI response error for agent ${agent.name}:`, error);
             }
@@ -572,7 +572,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 messageData.content,
                 (agent.temperature || 70) / 100,
                 conversationHistory.slice(-10).map(m => m.content),
-                agent.messagesPerResponse || 1
+                agent.maxTokens || 500
               );
 
               // Send multiple messages if configured
@@ -620,7 +620,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 messageCount: (agent.messageCount || 0) + messagesToSend.length
               });
 
-              console.log(`✅ API: AI Agent ${agent.name} sent ${messagesToSend.length} messages successfully after ${responseTime}ms individual delay`);
+              console.log(`✅ API: AI Agent ${agent.name} sent response (${messagesToSend[0]?.length || 0} chars) successfully after ${responseTime}ms individual delay`);
             } catch (error) {
               console.error('AI response error:', error);
             }

@@ -16,19 +16,14 @@ export class OpenAIService {
     userMessage: string,
     temperature: number = 0.7,
     conversationHistory: string[] = [],
-    messagesPerResponse: number = 1
+    maxTokens: number = 500
   ): Promise<AgentResponse> {
     try {
       const systemPrompt = `Você é um agente de atendimento virtual com a seguinte persona: ${persona}. 
       Responda de forma natural, útil e sempre mantendo o tom da persona definida. 
       Mantenha as respostas concisas e diretas para WhatsApp.
       
-      ${messagesPerResponse > 1 ? 
-        `IMPORTANTE: Você deve gerar exatamente ${messagesPerResponse} mensagens separadas em resposta. 
-        Separe cada mensagem com "||SEPARAR||". Cada mensagem deve ser independente mas relacionada ao contexto.
-        Exemplo: "Primeira mensagem aqui||SEPARAR||Segunda mensagem aqui"` 
-        : ''
-      }`;
+      IMPORTANTE: Sua resposta deve ter no máximo ${maxTokens} caracteres. Seja direto e objetivo.`;
 
       const messages: any[] = [
         { role: "system", content: systemPrompt }
@@ -49,27 +44,18 @@ export class OpenAIService {
         model: "gpt-4o",
         messages,
         temperature,
-        max_tokens: messagesPerResponse > 1 ? 800 : 500, // More tokens for multiple messages
+        max_tokens: Math.min(maxTokens, 1000), // Use configured limit but cap at 1000 tokens
       });
 
-      const assistantMessage = response.choices[0].message.content || "";
+      let assistantMessage = response.choices[0].message.content || "";
       
-      // Split messages if multiple messages requested
-      const responseMessages = messagesPerResponse > 1 && assistantMessage.includes('||SEPARAR||')
-        ? assistantMessage.split('||SEPARAR||').map(msg => msg.trim()).filter(msg => msg.length > 0)
-        : [assistantMessage];
-      
-      // Ensure we have the requested number of messages
-      const finalMessages = responseMessages.slice(0, messagesPerResponse);
-      if (finalMessages.length < messagesPerResponse && messagesPerResponse > 1) {
-        // If AI didn't provide enough messages, pad with variations of the first message
-        while (finalMessages.length < messagesPerResponse) {
-          finalMessages.push(finalMessages[0] + " 📝");
-        }
+      // Truncate message if it exceeds character limit
+      if (assistantMessage.length > maxTokens) {
+        assistantMessage = assistantMessage.substring(0, maxTokens - 3) + "...";
       }
       
       return {
-        messages: finalMessages,
+        messages: [assistantMessage], // Always return single message with character limit
         confidence: 0.9 // Simple confidence score
       };
     } catch (error) {
