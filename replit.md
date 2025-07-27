@@ -227,6 +227,14 @@ Preferred communication style: Simple, everyday language.
 - ✅ Sistema detecta desconexão → aguarda reconexão → retenta envio → sucesso
 - ✅ Conversas entre agentes GABRIEL ↔ MANDA totalmente resilientes
 - ✅ Logs mostram "✅ RETRY SUCCESS: Message sent on attempt 1"
+- 🔒 PROBLEMA CRÍTICO CORRIGIDO: CONVERSAS AUTOMÁTICAS INDEVIDAS (27/07/2025 21:03)
+- ✅ Sistema modificado para ignorar completamente mensagens de grupos WhatsApp (@g.us)
+- ✅ Verificação rigorosa implementada: apenas números conectados podem disparar inter-conexões
+- ✅ 15+ mensagens automáticas de grupos removidas do sistema
+- ✅ Agentes JULIA e GUILHERME pausados para evitar conversas não solicitadas
+- ✅ Logs melhorados: "🚫 Ignorando mensagem de GRUPO" para maior clareza
+- ✅ Sistema agora requer início manual pelo usuário antes de conversas automáticas
+- 🔐 REGRA FUNDAMENTAL: Apenas mensagens diretas entre conexões conectadas disparam agentes IA
 
 ### Special Features
 - Replit-specific configurations for development environment
