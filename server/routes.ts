@@ -9,7 +9,7 @@ import { openaiService } from "./services/openai";
 let continuousConversationInterval: NodeJS.Timeout | null = null;
 const CONVERSATION_INTERVAL = 45000; // 45 segundos entre mensagens automáticas
 
-// Função para iniciar conversas contínuas entre agentes  
+// Função para iniciar conversas contínuas entre agentes (SUPORTE MÚLTIPLAS CONEXÕES)
 async function startContinuousConversations(broadcastFn?: (event: string, data: any) => void) {
   if (continuousConversationInterval) {
     clearInterval(continuousConversationInterval);
@@ -22,37 +22,54 @@ async function startContinuousConversations(broadcastFn?: (event: string, data: 
       const connections = await storage.getWhatsappConnections();
       const activeConnections = connections.filter(c => c.status === 'connected');
       
-      if (activeConnections.length !== 2) {
-        console.log(`⏭️ CONVERSAS CONTÍNUAS: Aguardando 2 conexões ativas (atual: ${activeConnections.length})`);
+      if (activeConnections.length < 2) {
+        console.log(`⏭️ CONVERSAS CONTÍNUAS: Aguardando pelo menos 2 conexões ativas (atual: ${activeConnections.length})`);
         return;
       }
       
-      const [conn1, conn2] = activeConnections;
-      const agent1 = await storage.getAiAgentByConnection(conn1.id);
-      const agent2 = await storage.getAiAgentByConnection(conn2.id);
+      // Buscar todos os agentes ativos das conexões ativas
+      const activeAgents = [];
+      for (const conn of activeConnections) {
+        const agent = await storage.getAiAgentByConnection(conn.id);
+        if (agent && agent.isActive && !agent.isPaused) {
+          activeAgents.push({ agent, connection: conn });
+        }
+      }
       
-      if (!agent1 || !agent2 || !agent1.isActive || !agent2.isActive || agent1.isPaused || agent2.isPaused) {
-        console.log(`⏭️ CONVERSAS CONTÍNUAS: Aguardando agentes ativos (${agent1?.name}: ${agent1?.isActive && !agent1?.isPaused}, ${agent2?.name}: ${agent2?.isActive && !agent2?.isPaused})`);
+      if (activeAgents.length < 2) {
+        const agentStatus = activeConnections.map(conn => {
+          const agent = activeAgents.find(a => a.connection.id === conn.id)?.agent;
+          return `${conn.name}: ${agent ? '✅' : '❌'}`;
+        }).join(', ');
+        console.log(`⏭️ CONVERSAS CONTÍNUAS: Aguardando pelo menos 2 agentes ativos (${agentStatus})`);
         return;
       }
       
-      // Verificar última mensagem para evitar spam
-      const recentMessages = await storage.getConversation(conn1.id, conn2.id);
+      // Escolher aleatoriamente um agente iniciador e um alvo
+      const initiatorIndex = Math.floor(Math.random() * activeAgents.length);
+      let targetIndex = Math.floor(Math.random() * activeAgents.length);
+      
+      // Garantir que o alvo seja diferente do iniciador
+      while (targetIndex === initiatorIndex && activeAgents.length > 1) {
+        targetIndex = Math.floor(Math.random() * activeAgents.length);
+      }
+      
+      const initiatorAgent = activeAgents[initiatorIndex].agent;
+      const initiatorConnection = activeAgents[initiatorIndex].connection;
+      const targetConnection = activeAgents[targetIndex].connection;
+      
+      // Verificar última mensagem entre essas duas conexões específicas para evitar spam
+      const recentMessages = await storage.getConversation(initiatorConnection.id, targetConnection.id);
       const lastMessage = recentMessages[recentMessages.length - 1];
       
-      if (lastMessage && (Date.now() - new Date(lastMessage.timestamp).getTime()) < 30000) {
-        console.log(`⏭️ CONVERSAS CONTÍNUAS: Aguardando intervalo (última mensagem há ${Math.round((Date.now() - new Date(lastMessage.timestamp).getTime())/1000)}s)`);
+      if (lastMessage && (Date.now() - new Date(lastMessage.timestamp).getTime()) < 25000) {
+        console.log(`⏭️ CONVERSAS CONTÍNUAS: Aguardando intervalo entre ${initiatorConnection.name} e ${targetConnection.name} (última mensagem há ${Math.round((Date.now() - new Date(lastMessage.timestamp).getTime())/1000)}s)`);
         return;
       }
       
-      // Escolher agente aleatório para iniciar conversa
-      const initiatorAgent = Math.random() > 0.5 ? agent1 : agent2;
-      const targetConnection = initiatorAgent.id === agent1.id ? conn2 : conn1;
-      const initiatorConnection = initiatorAgent.id === agent1.id ? conn1 : conn2;
+      console.log(`🤖 CONVERSAS CONTÍNUAS: ${initiatorAgent.name} (${initiatorConnection.name}) iniciando conversa com ${targetConnection.name} [${activeAgents.length} agentes ativos]`);
       
-      console.log(`🤖 CONVERSAS CONTÍNUAS: ${initiatorAgent.name} iniciando conversa com ${targetConnection.name}`);
-      
-      // Gerar tópicos de conversa aleatórios
+      // Gerar tópicos de conversa aleatórios com mais variedade
       const topics = [
         "Como está seu dia hoje?",
         "O que você tem feito ultimamente?",
@@ -63,7 +80,17 @@ async function startContinuousConversations(broadcastFn?: (event: string, data: 
         "Tem algum plano para hoje?",
         "Como foi sua semana?",
         "Quer contar alguma história interessante?",
-        "O que tem te deixado feliz ultimamente?"
+        "O que tem te deixado feliz ultimamente?",
+        "Qual sua opinião sobre isso?",
+        "Como você passaria um dia perfeito?",
+        "Qual foi a melhor coisa que aconteceu hoje?",
+        "Tem alguma experiência interessante para compartilhar?",
+        "O que mais te motiva ultimamente?",
+        "Qual seu momento favorito do dia?",
+        "Tem algum sonho que quer realizar?",
+        "O que você faria se tivesse tempo livre?",
+        "Qual sua memória mais especial?",
+        "Como você descreveria seu humor hoje?"
       ];
       
       const randomTopic = topics[Math.floor(Math.random() * topics.length)];
@@ -90,7 +117,7 @@ async function startContinuousConversations(broadcastFn?: (event: string, data: 
           targetConnection.phoneNumber,
           randomTopic
         );
-        console.log(`🚀 CONVERSAS CONTÍNUAS: Mensagem enviada "${randomTopic}" de ${initiatorAgent.name} para ${targetConnection.name}`);
+        console.log(`🚀 CONVERSAS CONTÍNUAS: Mensagem enviada "${randomTopic}" de ${initiatorAgent.name} (${initiatorConnection.name}) para ${targetConnection.name}`);
       }
       
     } catch (error) {
@@ -251,11 +278,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       phoneNumber: data.phoneNumber 
     });
     
-    // Iniciar conversas contínuas quando 2 conexões estiverem ativas
+    // Iniciar conversas contínuas quando pelo menos 2 conexões estiverem ativas
     const connections = await storage.getWhatsappConnections();
     const activeConnections = connections.filter(c => c.status === 'connected');
-    if (activeConnections.length === 2) {
-      console.log('🎯 2 CONEXÕES ATIVAS DETECTADAS - Iniciando sistema de conversas contínuas');
+    if (activeConnections.length >= 2) {
+      console.log(`🎯 ${activeConnections.length} CONEXÕES ATIVAS DETECTADAS - Iniciando sistema de conversas contínuas`);
       startContinuousConversations(broadcast);
     }
   });

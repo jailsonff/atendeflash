@@ -268,6 +268,14 @@ Preferred communication style: Simple, everyday language.
 - ✅ Conexões estáveis garantidas através de controle sequencial
 - ✅ Logs confirmam: "Sistema pronto para conexões manuais sem conflitos"
 - 🎯 REGRA CRÍTICA: Conectar uma conta WhatsApp por vez na interface web
+- 🎯 SISTEMA MÚLTIPLAS CONEXÕES IMPLEMENTADO (27/07/2025 23:26)
+- ✅ Sistema modificado para suportar 3+ conexões simultâneas
+- ✅ Algoritmo inteligente escolhe aleatoriamente agente iniciador e alvo
+- ✅ Conversas contínuas funcionam entre qualquer par de agentes ativos
+- ✅ Cada agente pode conversar com todos os outros agentes do grupo
+- ✅ Sistema evita spam verificando última mensagem entre pares específicos
+- ✅ Tópicos de conversa expandidos (20 opções) para maior variedade
+- 📋 EXEMPLO: GABRIEL, SABRINA e CONSULTORA conversando em trio dinamicamente
 
 ### Special Features
 - Replit-specific configurations for development environment
