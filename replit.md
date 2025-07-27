@@ -186,6 +186,13 @@ Preferred communication style: Simple, everyday language.
 - ✅ Frontend atualizado para identificar conexões pareadas
 - ✅ Botão de lixeira agora limpa conversas individuais, não todas as mensagens
 - ✅ Layout melhorado com text truncate e espaçamento garantido
+- 🔒 DUPLICAÇÃO DE MENSAGENS RESOLVIDA (27/07/2025 15:41)
+- ✅ Sistema de cache sentMessageCache implementado com sucesso
+- ✅ Cache rastrea mensagens enviadas via API para evitar duplicatas
+- ✅ Verificação automática de duplicatas no handler message_received
+- ✅ Limpeza automática do cache após 1 minuto para otimizar performance
+- ✅ Logs confirmam: "Ignorando duplicata" funcionando perfeitamente
+- ✅ Sistema elimina completamente duplicatas entre API e WhatsApp
 
 ### Special Features
 - Replit-specific configurations for development environment
