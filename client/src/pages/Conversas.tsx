@@ -258,9 +258,9 @@ export default function Conversas() {
                         : 'hover:bg-muted'
                     }`}
                   >
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
                       <div 
-                        className="flex items-center space-x-3 flex-1 min-w-0"
+                        className="flex items-center space-x-3 flex-1 min-w-0 cursor-pointer"
                         onClick={() => setSelectedConnectionId(conversation.connectionId)}
                       >
                         <div className="relative flex-shrink-0">
@@ -269,21 +269,22 @@ export default function Conversas() {
                           </div>
                           <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-dark-secondary"></div>
                         </div>
-                        <div className="flex-1 min-w-0 pr-3">
+                        <div className="flex-1 min-w-0 max-w-[180px]">
                           <p className="font-medium text-white truncate">
                             {conversation.connectionName}
                           </p>
                           {conversation.lastMessage && (
                             <p className="text-sm text-gray-400 truncate">
-                              {conversation.lastMessage.length > 45 
-                                ? conversation.lastMessage.substring(0, 45) + '...'
+                              {conversation.lastMessage.length > 30 
+                                ? conversation.lastMessage.substring(0, 30) + '...'
                                 : conversation.lastMessage
                               }
                             </p>
                           )}
                         </div>
                       </div>
-                      <div className="flex flex-col items-end space-y-1 flex-shrink-0">
+                      
+                      <div className="flex flex-col items-end space-y-1 flex-shrink-0 w-16">
                         {conversation.lastMessageTime && (
                           <p className="text-xs text-gray-400">
                             {new Date(conversation.lastMessageTime).toLocaleTimeString('pt-BR', {
@@ -292,7 +293,7 @@ export default function Conversas() {
                             })}
                           </p>
                         )}
-                        <div className="flex items-center space-x-1">
+                        <div className="flex items-center justify-end w-full">
                           <Button
                             variant="ghost"
                             size="sm"
@@ -316,7 +317,7 @@ export default function Conversas() {
                             <Trash2 className="h-4 w-4" />
                           </Button>
                           {conversation.unreadCount > 0 && (
-                            <Badge className="bg-[hsl(328,100%,54%)] text-white text-xs">
+                            <Badge className="bg-[hsl(328,100%,54%)] text-white text-xs ml-1">
                               {conversation.unreadCount}
                             </Badge>
                           )}
