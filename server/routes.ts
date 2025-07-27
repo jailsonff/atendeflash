@@ -271,14 +271,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
           console.log(`🔒 AI MESSAGE CACHED: "${data.body.slice(0, 30)}..." from agent "${agentFromSender?.name}"`);
         }
-      } else if (receivingConnection && allConnectedIds.length === 2 && !data.fromMe) {
-        // SPECIAL CASE: When we have exactly 2 connections and message arrives at one of them
+      } else if (receivingConnection && allConnectedIds.length === 2 && !data.fromMe && !data.from.includes('@g.us')) {
+        // SPECIAL CASE: When we have exactly 2 connections and message arrives from INDIVIDUAL WhatsApp number (not group)
         // This might be a response from our AI agents or continuation of conversation
         // We'll treat it as a message from the OTHER connection to THIS connection
+        // IMPORTANT: Only accept messages from individual numbers, NOT groups (@g.us)
         const otherConnectionId = allConnectedIds.find(id => id !== data.connectionId);
         if (otherConnectionId) {
           const otherConnection = connections.find(c => c.id === otherConnectionId);
-          console.log(`🔄 AUTO-DETECTING inter-connection: ${otherConnection?.name} → ${receivingConnection.name} (2-connection mode)`);
+          console.log(`🔄 AUTO-DETECTING inter-connection: ${otherConnection?.name} → ${receivingConnection.name} (individual message only)`);
           
           // Clean caches
           cleanSentMessageCache();
