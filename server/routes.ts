@@ -27,36 +27,38 @@ async function startContinuousConversations(broadcastFn?: (event: string, data: 
         return;
       }
       
-      // Buscar todos os agentes ativos das conexões ativas
-      const activeAgents = [];
-      for (const conn of activeConnections) {
-        const agent = await storage.getAiAgentByConnection(conn.id);
-        if (agent && agent.isActive && !agent.isPaused) {
-          activeAgents.push({ agent, connection: conn });
-        }
-      }
+      // NOVO SISTEMA: Buscar TODOS os agentes ativos (não vinculados a conexões específicas)
+      const allActiveAgents = await storage.getAllActiveAgents();
       
-      if (activeAgents.length < 2) {
-        const agentStatus = activeConnections.map(conn => {
-          const agent = activeAgents.find(a => a.connection.id === conn.id)?.agent;
-          return `${conn.name}: ${agent ? '✅' : '❌'}`;
-        }).join(', ');
+      if (allActiveAgents.length < 2) {
+        const agentStatus = allActiveAgents.map(a => `${a.name}: ✅`).join(', ') || 'Nenhum agente ativo';
         console.log(`⏭️ CONVERSAS CONTÍNUAS: Aguardando pelo menos 2 agentes ativos (${agentStatus})`);
         return;
       }
       
       // Escolher aleatoriamente um agente iniciador e um alvo
-      const initiatorIndex = Math.floor(Math.random() * activeAgents.length);
-      let targetIndex = Math.floor(Math.random() * activeAgents.length);
+      const initiatorAgentIndex = Math.floor(Math.random() * allActiveAgents.length);
+      let targetAgentIndex = Math.floor(Math.random() * allActiveAgents.length);
       
       // Garantir que o alvo seja diferente do iniciador
-      while (targetIndex === initiatorIndex && activeAgents.length > 1) {
-        targetIndex = Math.floor(Math.random() * activeAgents.length);
+      while (targetAgentIndex === initiatorAgentIndex && allActiveAgents.length > 1) {
+        targetAgentIndex = Math.floor(Math.random() * allActiveAgents.length);
       }
       
-      const initiatorAgent = activeAgents[initiatorIndex].agent;
-      const initiatorConnection = activeAgents[initiatorIndex].connection;
-      const targetConnection = activeAgents[targetIndex].connection;
+      const initiatorAgent = allActiveAgents[initiatorAgentIndex];
+      const targetAgent = allActiveAgents[targetAgentIndex];
+      
+      // Escolher aleatoriamente conexões para cada agente
+      const initiatorConnectionIndex = Math.floor(Math.random() * activeConnections.length);
+      let targetConnectionIndex = Math.floor(Math.random() * activeConnections.length);
+      
+      // Garantir que as conexões sejam diferentes
+      while (targetConnectionIndex === initiatorConnectionIndex && activeConnections.length > 1) {
+        targetConnectionIndex = Math.floor(Math.random() * activeConnections.length);
+      }
+      
+      const initiatorConnection = activeConnections[initiatorConnectionIndex];
+      const targetConnection = activeConnections[targetConnectionIndex];
       
       // Verificar última mensagem entre essas duas conexões específicas para evitar spam
       const recentMessages = await storage.getConversation(initiatorConnection.id, targetConnection.id);
@@ -67,7 +69,7 @@ async function startContinuousConversations(broadcastFn?: (event: string, data: 
         return;
       }
       
-      console.log(`🤖 CONVERSAS CONTÍNUAS: ${initiatorAgent.name} (${initiatorConnection.name}) iniciando conversa com ${targetConnection.name} [${activeAgents.length} agentes ativos]`);
+      console.log(`🤖 CONVERSAS CONTÍNUAS: ${initiatorAgent.name} (via ${initiatorConnection.name}) iniciando conversa com ${targetAgent.name} (via ${targetConnection.name}) [${allActiveAgents.length} agentes livres]`);
       
       // Gerar tópicos de conversa aleatórios com mais variedade
       const topics = [
@@ -117,7 +119,7 @@ async function startContinuousConversations(broadcastFn?: (event: string, data: 
           targetConnection.phoneNumber,
           randomTopic
         );
-        console.log(`🚀 CONVERSAS CONTÍNUAS: Mensagem enviada "${randomTopic}" de ${initiatorAgent.name} (${initiatorConnection.name}) para ${targetConnection.name}`);
+        console.log(`🚀 CONVERSAS CONTÍNUAS: ${initiatorAgent.name} (${initiatorConnection.name}) → ${targetAgent.name} (${targetConnection.name})`);
       }
       
     } catch (error) {
@@ -475,29 +477,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const message = await storage.createMessage(messageData);
       broadcast('message_received', message);
       
-      // Check for AI agent response - CONTINUOUS CONVERSATION ENABLED
+      // NOVO SISTEMA: Qualquer agente ativo pode responder a qualquer mensagem
       if (messageData.toConnectionId) {
-        const agent = await storage.getAiAgentByConnection(messageData.toConnectionId);
-        if (agent && agent.isActive && !agent.isPaused) {
+        // Buscar um agente aleatório ativo para responder (não vinculado a conexão específica)
+        const allActiveAgents = await storage.getAllActiveAgents();
+        const availableAgents = allActiveAgents.filter(agent => 
+          !messageData.agentId || agent.id !== messageData.agentId // Evitar que agente responda a si mesmo
+        );
+        
+        if (availableAgents.length > 0) {
+          // Escolher agente aleatório para responder
+          const randomAgentIndex = Math.floor(Math.random() * availableAgents.length);
+          const agent = availableAgents[randomAgentIndex];
           
-          // CONTINUOUS CONVERSATION LOGIC:
-          // 1. Always respond to human messages (isFromAgent: false)
-          // 2. Respond to AI messages from OTHER agents (prevent self-talk)
-          // 3. Skip if it's from the same agent (prevent agent talking to itself)
+          console.log(`🤖 SISTEMA LIVRE: Agente ${agent.name} escolhido aleatoriamente para responder (${messageData.isFromAgent ? 'AI-to-AI' : 'Human-to-AI'})`);
           
-          const shouldRespond = !messageData.isFromAgent || // Always respond to human messages
-            (messageData.isFromAgent && messageData.agentId !== agent.id); // Respond to other agents only
+          // Use agent's individual response time
+          const responseTime = agent?.responseTime || 2000;
           
-          if (shouldRespond) {
-            console.log(`🤖 Processing message with AI agent: ${agent.name} (${messageData.isFromAgent ? 'AI-to-AI continuous' : 'Human-to-AI'})`);
-            
-            // Use agent's individual response time
-            const responseTime = agent?.responseTime || 2000; // Default 2 seconds if not set
-            
-            console.log(`⏰ WEBSOCKET: Agent "${agent.name}" waiting ${responseTime}ms before response (individual delay)`);
-            
-            // Respect the configured response time delay
-            setTimeout(async () => {
+          console.log(`⏰ Agente "${agent.name}" aguardando ${responseTime}ms antes de responder`);
+          
+          setTimeout(async () => {
             try {
               const conversationHistory = await storage.getConversation(
                 messageData.fromConnectionId || '',
@@ -512,72 +512,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 agent.maxTokens || 500
               );
 
-              // Send multiple messages if configured
-              const messagesToSend = response.messages;
-              const createdMessages = [];
-
-              for (let i = 0; i < messagesToSend.length; i++) {
-                const messageContent = messagesToSend[i];
-                
-                // Create AI response message - WEBSOCKET VERSION
-                const aiMessage = await storage.createMessage({
-                  fromConnectionId: messageData.toConnectionId,
-                  toConnectionId: messageData.fromConnectionId,
-                  content: messageContent,
-                  messageType: 'text',
-                  isFromAgent: true, // CRITICAL: Mark as AI message to prevent infinite loops
-                  agentId: agent.id
-                });
-
-                createdMessages.push(aiMessage);
-
-                // CRITICAL: Add to cache to prevent infinite loops when message comes back from WhatsApp
-                recentAiResponses.set(messageContent, Date.now());
-                
-                // Also add to AI message cache with unique key to prevent duplicates
-                const aiMsgKey = `${agent.id}:${messageContent}:${messageData.toConnectionId}:${messageData.fromConnectionId}`;
-                aiMessageCache.set(aiMsgKey, { timestamp: Date.now(), processed: true });
-                
-                console.log(`🔒 CACHE: Added AI response ${i+1}/${messagesToSend.length} to loop prevention cache: "${messageContent.slice(0, 50)}..."`);
-
-                // Send AI response via WhatsApp with small delay between messages
-                if (messageData.fromConnectionId) {
-                  const fromConnection = await storage.getWhatsappConnection(messageData.fromConnectionId);
-                  if (fromConnection && fromConnection.phoneNumber && baileysWhatsAppService.isConnected(messageData.toConnectionId)) {
-                    console.log(`🚀 Sending AI response ${i+1}/${messagesToSend.length} from ${agent.name} to ${fromConnection.phoneNumber}: "${messageContent}"`);
-                    await baileysWhatsAppService.sendMessage(
-                      messageData.toConnectionId,
-                      fromConnection.phoneNumber,
-                      messageContent
-                    );
-                    
-                    // Small delay between multiple messages (500ms)
-                    if (i < messagesToSend.length - 1) {
-                      await new Promise(resolve => setTimeout(resolve, 500));
-                    }
-                  }
-                }
-
-                broadcast('ai_response', aiMessage);
-              }
-
-              // Update agent message count (count all messages sent)
-              await storage.updateAiAgent(agent.id, {
-                messageCount: (agent.messageCount || 0) + messagesToSend.length
+              const messageContent = response.messages[0];
+              
+              // Create AI response message
+              const aiMessage = await storage.createMessage({
+                fromConnectionId: messageData.toConnectionId,
+                toConnectionId: messageData.fromConnectionId,
+                content: messageContent,
+                messageType: 'text',
+                isFromAgent: true,
+                agentId: agent.id
               });
 
-              console.log(`✅ WEBSOCKET: AI Agent ${agent.name} sent response (${messagesToSend[0]?.length || 0} chars) successfully after ${responseTime}ms individual delay`);
+              // Add to cache to prevent loops
+              recentAiResponses.set(messageContent, Date.now());
+              const aiMsgKey = `${agent.id}:${messageContent}:${messageData.toConnectionId}:${messageData.fromConnectionId}`;
+              aiMessageCache.set(aiMsgKey, { timestamp: Date.now(), processed: true });
+
+              // Send AI response via WhatsApp
+              if (messageData.fromConnectionId) {
+                const fromConnection = await storage.getWhatsappConnection(messageData.fromConnectionId);
+                if (fromConnection && fromConnection.phoneNumber && baileysWhatsAppService.isConnected(messageData.toConnectionId)) {
+                  console.log(`🚀 ${agent.name} → ${fromConnection.phoneNumber}: "${messageContent}"`);
+                  await baileysWhatsAppService.sendMessage(
+                    messageData.toConnectionId,
+                    fromConnection.phoneNumber,
+                    messageContent
+                  );
+                }
+              }
+
+              broadcast('ai_response', aiMessage);
+
+              // Update agent message count
+              await storage.updateAiAgent(agent.id, {
+                messageCount: (agent.messageCount || 0) + 1
+              });
+
+              console.log(`✅ SISTEMA LIVRE: ${agent.name} respondeu com sucesso após ${responseTime}ms`);
             } catch (error) {
-              console.error(`❌ AI response error for agent ${agent.name}:`, error);
+              console.error(`❌ Erro no agente ${agent.name}:`, error);
             }
           }, responseTime);
-          } else {
-            console.log(`🚫 WEBSOCKET: Agent "${agent.name}" SKIPPED - Same agent would be talking to itself`);
-          }
-        } else if (agent && agent.isPaused) {
-          console.log(`⏸️ WEBSOCKET: Agent "${agent.name}" SKIPPED - Agent is paused`);
         } else {
-          console.log(`🚫 WEBSOCKET: Agent "${agent.name}" SKIPPED - Not active or no agent found`);
+          console.log(`🚫 SISTEMA LIVRE: Nenhum agente disponível para responder (${allActiveAgents.length} ativos, ${availableAgents.length} disponíveis)`);
         }
       }
     } catch (error) {

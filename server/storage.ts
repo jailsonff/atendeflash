@@ -198,6 +198,19 @@ export class MemStorage implements IStorage {
     return Array.from(this.agents.values()).find(agent => agent.connectionId === connectionId);
   }
 
+  async getActiveAgentsForConnection(connectionId: string): Promise<AiAgent[]> {
+    // Para compatibilidade: retorna agentes conectados via connectionId ou através de agentConnections
+    return Array.from(this.agents.values()).filter(agent => 
+      agent.connectionId === connectionId && agent.isActive && !agent.isPaused
+    );
+  }
+
+  async getAllActiveAgents(): Promise<AiAgent[]> {
+    return Array.from(this.agents.values()).filter(agent => 
+      agent.isActive && !agent.isPaused
+    );
+  }
+
   async createAiAgent(agent: InsertAiAgent): Promise<AiAgent> {
     const id = randomUUID();
     const now = new Date();

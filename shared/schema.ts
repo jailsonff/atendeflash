@@ -34,12 +34,21 @@ export const aiAgents = pgTable("ai_agents", {
   temperature: integer("temperature").default(70), // Store as integer (0.7 * 100)
   responseTime: integer("response_time").default(2000), // Response time in milliseconds
   maxTokens: integer("max_tokens").default(500), // Maximum tokens/characters for responses
-  connectionId: varchar("connection_id").references(() => whatsappConnections.id),
+  connectionId: varchar("connection_id").references(() => whatsappConnections.id), // OPCIONAL - agentes podem ser livres
   isActive: boolean("is_active").default(true),
   isPaused: boolean("is_paused").default(false), // New field to pause/unpause agents
   messageCount: integer("message_count").default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Nova tabela para conexões dinâmicas agente-conexão
+export const agentConnections = pgTable("agent_connections", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  agentId: varchar("agent_id").references(() => aiAgents.id, { onDelete: 'cascade' }).notNull(),
+  connectionId: varchar("connection_id").references(() => whatsappConnections.id, { onDelete: 'cascade' }).notNull(),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const chatgptConfig = pgTable("chatgpt_config", {
@@ -76,6 +85,11 @@ export const insertChatgptConfigSchema = createInsertSchema(chatgptConfig).omit(
   updatedAt: true,
 });
 
+export const insertAgentConnectionSchema = createInsertSchema(agentConnections).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type InsertWhatsappConnection = z.infer<typeof insertWhatsappConnectionSchema>;
 export type WhatsappConnection = typeof whatsappConnections.$inferSelect;
 
@@ -87,3 +101,6 @@ export type AiAgent = typeof aiAgents.$inferSelect;
 
 export type InsertChatgptConfig = z.infer<typeof insertChatgptConfigSchema>;
 export type ChatgptConfig = typeof chatgptConfig.$inferSelect;
+
+export type InsertAgentConnection = z.infer<typeof insertAgentConnectionSchema>;
+export type AgentConnection = typeof agentConnections.$inferSelect;
