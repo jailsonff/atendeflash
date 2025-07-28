@@ -492,12 +492,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           console.log(`🤖 SISTEMA LIVRE: Agente ${agent.name} escolhido aleatoriamente para responder (${messageData.isFromAgent ? 'AI-to-AI' : 'Human-to-AI'})`);
           
-          // Use agent's individual response time
+          // Use agent's individual response time - GARANTIA DE TIMING PRECISO
           const responseTime = agent?.responseTime || 2000;
+          const startTime = Date.now();
           
-          console.log(`⏰ Agente "${agent.name}" aguardando ${responseTime}ms antes de responder`);
+          console.log(`⏰ TIMING PRECISO: Agente "${agent.name}" aguardando EXATOS ${responseTime}ms antes de responder (${responseTime/1000}s)`);
           
           setTimeout(async () => {
+            const actualDelay = Date.now() - startTime;
+            console.log(`✅ TIMING CONFIRMADO: Agente "${agent.name}" respondeu após ${actualDelay}ms (target: ${responseTime}ms, diff: ${actualDelay - responseTime}ms)`);
             try {
               const conversationHistory = await storage.getConversation(
                 messageData.fromConnectionId || '',
@@ -843,82 +846,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
             (messageData.isFromAgent && messageData.agentId !== agent.id); // Respond to other agents only
           
           if (shouldRespond) {
-            // Use agent's individual response time
+            // Use agent's individual response time - GARANTIA DE TIMING PRECISO
             const responseTime = agent?.responseTime || 2000; // Default 2 seconds if not set
+            const startTime = Date.now();
             
-            console.log(`⏰ API: Agent "${agent.name}" waiting ${responseTime}ms before response (${messageData.isFromAgent ? 'AI-to-AI continuous' : 'Human-to-AI'}) (individual delay)`);
+            console.log(`⏰ TIMING PRECISO API: Agente "${agent.name}" aguardando EXATOS ${responseTime}ms (${responseTime/1000}s) - ${messageData.isFromAgent ? 'AI-to-AI contínua' : 'Humano-to-AI'}`);
             
-            // Respect the configured response time delay
+            // Respect the configured response time delay with precise timing
             setTimeout(async () => {
-            try {
-              const conversationHistory = await storage.getConversation(
-                messageData.fromConnectionId || '',
-                messageData.toConnectionId
-              );
+              const actualDelay = Date.now() - startTime;
+              console.log(`✅ TIMING CONFIRMADO API: Agente "${agent.name}" respondeu após ${actualDelay}ms (target: ${responseTime}ms, diff: ${actualDelay - responseTime}ms)`);
+              
+              try {
+                const conversationHistory = await storage.getConversation(
+                  messageData.fromConnectionId || '',
+                  messageData.toConnectionId || ''
+                );
 
-              const response = await openaiService.generateAgentResponse(
-                agent.persona,
-                messageData.content,
-                (agent.temperature || 70) / 100,
-                conversationHistory.slice(-10).map(m => m.content),
-                agent.maxTokens || 500
-              );
+                const response = await openaiService.generateAgentResponse(
+                  agent.persona,
+                  messageData.content,
+                  (agent.temperature || 70) / 100,
+                  conversationHistory.slice(-10).map(m => m.content),
+                  agent.maxTokens || 500
+                );
 
-              // Send multiple messages if configured
-              const messagesToSend = response.messages;
+                // Send multiple messages if configured
+                const messagesToSend = response.messages;
 
-              for (let i = 0; i < messagesToSend.length; i++) {
-                const messageContent = messagesToSend[i];
-                
-                // Create AI response message - API VERSION
-                const aiMessage = await storage.createMessage({
-                  fromConnectionId: messageData.toConnectionId,
-                  toConnectionId: messageData.fromConnectionId,
-                  content: messageContent,
-                  messageType: 'text',
-                  isFromAgent: true, // CRITICAL: Mark as AI message to prevent infinite loops
-                  agentId: agent.id
-                });
+                for (let i = 0; i < messagesToSend.length; i++) {
+                  const messageContent = messagesToSend[i];
+                  
+                  // Create AI response message - API VERSION
+                  const aiMessage = await storage.createMessage({
+                    fromConnectionId: messageData.toConnectionId,
+                    toConnectionId: messageData.fromConnectionId,
+                    content: messageContent,
+                    messageType: 'text',
+                    isFromAgent: true, // CRITICAL: Mark as AI message to prevent infinite loops
+                    agentId: agent.id
+                  });
 
-                // CRITICAL: Add to cache to prevent infinite loops when message comes back from WhatsApp
-                recentAiResponses.set(messageContent, Date.now());
-                
-                // Also add to AI message cache with unique key to prevent duplicates
-                const aiMsgKey = `${agent.id}:${messageContent}:${messageData.toConnectionId}:${messageData.fromConnectionId}`;
-                aiMessageCache.set(aiMsgKey, { timestamp: Date.now(), processed: true });
-                
-                console.log(`🔒 CACHE: Added AI response ${i+1}/${messagesToSend.length} to loop prevention cache: "${messageContent.slice(0, 50)}..."`);
+                  // CRITICAL: Add to cache to prevent infinite loops when message comes back from WhatsApp
+                  recentAiResponses.set(messageContent, Date.now());
+                  
+                  // Also add to AI message cache with unique key to prevent duplicates
+                  const aiMsgKey = `${agent.id}:${messageContent}:${messageData.toConnectionId}:${messageData.fromConnectionId}`;
+                  aiMessageCache.set(aiMsgKey, { timestamp: Date.now(), processed: true });
+                  
+                  console.log(`🔒 CACHE: Added AI response ${i+1}/${messagesToSend.length} to loop prevention cache: "${messageContent.slice(0, 50)}..."`);
 
-                // Send AI response via WhatsApp with retry mechanism for disconnections
-                if (messageData.fromConnectionId) {
-                  const fromConnection = await storage.getWhatsappConnection(messageData.fromConnectionId);
-                  if (fromConnection && fromConnection.phoneNumber) {
-                    await sendWhatsAppMessageWithRetry(
-                      messageData.toConnectionId,
-                      fromConnection.phoneNumber,
-                      messageContent,
-                      3 // Max 3 retries
-                    );
-                    
-                    // Small delay between multiple messages (500ms)
-                    if (i < messagesToSend.length - 1) {
-                      await new Promise(resolve => setTimeout(resolve, 500));
+                  // Send AI response via WhatsApp with retry mechanism for disconnections
+                  if (messageData.fromConnectionId) {
+                    const fromConnection = await storage.getWhatsappConnection(messageData.fromConnectionId);
+                    if (fromConnection && fromConnection.phoneNumber) {
+                      await sendWhatsAppMessageWithRetry(
+                        messageData.toConnectionId || '',
+                        fromConnection.phoneNumber,
+                        messageContent,
+                        3 // Max 3 retries
+                      );
+                      
+                      // Small delay between multiple messages (500ms)
+                      if (i < messagesToSend.length - 1) {
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                      }
                     }
                   }
+
+                  broadcast('ai_response', aiMessage);
                 }
 
-                broadcast('ai_response', aiMessage);
+                // Update agent message count (count all messages sent)
+                await storage.updateAiAgent(agent.id, {
+                  messageCount: (agent.messageCount || 0) + messagesToSend.length
+                });
+
+                console.log(`✅ API: AI Agent ${agent.name} sent response (${messagesToSend[0]?.length || 0} chars) successfully after ${responseTime}ms individual delay`);
+              } catch (error) {
+                console.error('AI response error:', error);
               }
-
-              // Update agent message count (count all messages sent)
-              await storage.updateAiAgent(agent.id, {
-                messageCount: (agent.messageCount || 0) + messagesToSend.length
-              });
-
-              console.log(`✅ API: AI Agent ${agent.name} sent response (${messagesToSend[0]?.length || 0} chars) successfully after ${responseTime}ms individual delay`);
-            } catch (error) {
-              console.error('AI response error:', error);
-            }
           }, responseTime);
           } else {
             console.log(`🚫 API: Agent "${agent.name}" SKIPPED - Same agent would be talking to itself`);
