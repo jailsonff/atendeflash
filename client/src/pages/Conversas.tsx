@@ -39,8 +39,11 @@ interface Agent {
 export default function Conversas() {
   const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
   const [activeChat, setActiveChat] = useState<string | null>(null);
+  const [selectedTargetConnections, setSelectedTargetConnections] = useState<string[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [globalAgentsPaused, setGlobalAgentsPaused] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [viewMode, setViewMode] = useState<'individual' | 'group'>('individual');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   const { toast } = useToast();
@@ -239,6 +242,42 @@ export default function Conversas() {
   const selectedConnection = connections.find(c => c.id === selectedConnectionId);
   const activeConnection = connections.find(c => c.id === activeChat);
 
+  // Filter connections by search term
+  const filteredConnections = connections
+    .filter(conn => conn.status === 'connected')
+    .filter(conn => 
+      conn.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      conn.phoneNumber.includes(searchTerm)
+    );
+
+  // Filter available targets (exclude selected connection)
+  const availableTargets = connections
+    .filter(conn => conn.status === 'connected' && conn.id !== selectedConnectionId)
+    .filter(conn => 
+      conn.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      conn.phoneNumber.includes(searchTerm)
+    );
+
+  const handleToggleTargetConnection = (connectionId: string) => {
+    setSelectedTargetConnections(prev => 
+      prev.includes(connectionId) 
+        ? prev.filter(id => id !== connectionId)
+        : [...prev, connectionId]
+    );
+  };
+
+  const sendToMultipleTargets = () => {
+    if (!newMessage.trim() || !selectedConnectionId || selectedTargetConnections.length === 0) return;
+    
+    selectedTargetConnections.forEach(targetId => {
+      sendMessageMutation.mutate({
+        content: newMessage,
+        fromConnectionId: selectedConnectionId,
+        toConnectionId: targetId,
+      });
+    });
+  };
+
   return (
     <>
       {/* Header */}
@@ -308,12 +347,41 @@ export default function Conversas() {
           <div className="p-4 border-b border-border">
             <h3 className="font-semibold text-foreground">Selecionar Conexão</h3>
             <p className="text-sm text-muted-foreground">Escolha quem vai enviar mensagens</p>
+            
+            {/* Search Bar */}
+            <div className="mt-3">
+              <Input
+                placeholder="Buscar conexões..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="text-sm"
+              />
+            </div>
+
+            {/* View Mode Toggle */}
+            <div className="flex mt-3 bg-muted rounded-lg p-1">
+              <Button
+                variant={viewMode === 'individual' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('individual')}
+                className="flex-1 text-xs"
+              >
+                Individual
+              </Button>
+              <Button
+                variant={viewMode === 'group' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('group')}
+                className="flex-1 text-xs"
+              >
+                Grupo
+              </Button>
+            </div>
           </div>
           <ScrollArea className="flex-1">
             <div className="p-4 space-y-3">
-              {connections
-                .filter(conn => conn.status === 'connected')
-                .map(connection => (
+              {filteredConnections.length > 0 ? (
+                filteredConnections.map(connection => (
                   <Card 
                     key={connection.id}
                     className={`cursor-pointer transition-all border ${
@@ -341,9 +409,17 @@ export default function Conversas() {
                       </div>
                     </CardContent>
                   </Card>
-                ))}
+                ))
+              ) : (
+                <div className="text-center py-4">
+                  <i className="fas fa-search text-2xl text-muted-foreground mb-2"></i>
+                  <p className="text-sm text-muted-foreground">
+                    {searchTerm ? 'Nenhuma conexão encontrada' : 'Digite para buscar'}
+                  </p>
+                </div>
+              )}
               
-              {connections.filter(conn => conn.status === 'connected').length === 0 && (
+              {connections.filter(conn => conn.status === 'connected').length === 0 && !searchTerm && (
                 <div className="text-center py-8">
                   <div className="w-16 h-16 mx-auto mb-4 bg-muted rounded-full flex items-center justify-center">
                     <i className="fas fa-plug text-2xl text-muted-foreground"></i>
@@ -356,8 +432,8 @@ export default function Conversas() {
           </ScrollArea>
         </div>
 
-        {/* Conversation Selection */}
-        {selectedConnectionId && (
+        {/* Target Selection */}
+        {selectedConnectionId && viewMode === 'individual' && (
           <div className="w-80 bg-card border-r border-border">
             <div className="p-4 border-b border-border">
               <h3 className="font-semibold text-foreground">Conversas de {selectedConnection?.name}</h3>
@@ -421,8 +497,67 @@ export default function Conversas() {
           </div>
         )}
 
-        {/* Chat Area */}
-        {activeChat && selectedConnectionId ? (
+        {/* Multi-Target Selection */}
+        {selectedConnectionId && viewMode === 'group' && (
+          <div className="w-80 bg-card border-r border-border">
+            <div className="p-4 border-b border-border">
+              <h3 className="font-semibold text-foreground">Selecionar Alvos</h3>
+              <p className="text-sm text-muted-foreground">
+                Escolha múltiplas conexões para {selectedConnection?.name}
+              </p>
+              <div className="mt-2">
+                <Badge variant="secondary" className="text-xs">
+                  {selectedTargetConnections.length} selecionadas
+                </Badge>
+              </div>
+            </div>
+            <ScrollArea className="flex-1">
+              <div className="p-4 space-y-3">
+                {availableTargets.map(connection => (
+                  <Card 
+                    key={connection.id}
+                    className={`cursor-pointer transition-all border ${
+                      selectedTargetConnections.includes(connection.id)
+                        ? 'border-primary bg-primary/5' 
+                        : 'border-border hover:border-primary/50'
+                    }`}
+                    onClick={() => handleToggleTargetConnection(connection.id)}
+                  >
+                    <CardContent className="p-3">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center">
+                          <i className="fas fa-whatsapp text-primary text-sm"></i>
+                        </div>
+                        <div className="flex-1">
+                          <h5 className="font-medium text-foreground text-sm">{connection.name}</h5>
+                          <p className="text-xs text-muted-foreground">{connection.phoneNumber}</p>
+                        </div>
+                        {selectedTargetConnections.includes(connection.id) && (
+                          <i className="fas fa-check text-primary"></i>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+                
+                {availableTargets.length === 0 && (
+                  <div className="text-center py-8">
+                    <div className="w-16 h-16 mx-auto mb-4 bg-muted rounded-full flex items-center justify-center">
+                      <i className="fas fa-users text-2xl text-muted-foreground"></i>
+                    </div>
+                    <h3 className="text-lg font-medium text-foreground mb-2">Nenhuma conexão disponível</h3>
+                    <p className="text-muted-foreground text-sm">
+                      Conecte mais contas WhatsApp para criar grupos
+                    </p>
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
+          </div>
+        )}
+
+        {/* Individual Chat Area */}
+        {activeChat && selectedConnectionId && viewMode === 'individual' ? (
           <div className="flex-1 flex flex-col bg-card">
             {/* Chat Header */}
             <div className="px-6 py-4 border-b border-border bg-card">
@@ -564,15 +699,115 @@ export default function Conversas() {
               </div>
             </div>
           </div>
+        ) : selectedConnectionId && viewMode === 'group' && selectedTargetConnections.length > 0 ? (
+          <div className="flex-1 flex flex-col bg-card">
+            {/* Group Chat Header */}
+            <div className="px-6 py-4 border-b border-border bg-card">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-foreground">
+                    Envio para Múltiplas Conexões
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedConnection?.name} → {selectedTargetConnections.length} conexões
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedTargetConnections([])}
+                  className="text-red-400 border-red-500/30 hover:bg-red-500/20"
+                >
+                  <i className="fas fa-times mr-2"></i>
+                  Limpar Seleção
+                </Button>
+              </div>
+            </div>
+
+            {/* Selected Targets Display */}
+            <div className="px-6 py-4 border-b border-border">
+              <h4 className="text-sm font-medium text-foreground mb-3">Conexões Selecionadas:</h4>
+              <div className="flex flex-wrap gap-2">
+                {selectedTargetConnections.map(targetId => {
+                  const target = connections.find(c => c.id === targetId);
+                  return target ? (
+                    <Badge key={targetId} variant="secondary" className="text-xs">
+                      <i className="fas fa-whatsapp mr-1"></i>
+                      {target.name}
+                    </Badge>
+                  ) : null;
+                })}
+              </div>
+            </div>
+
+            {/* Group Message Input */}
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center max-w-md mx-auto">
+                <div className="w-16 h-16 mx-auto mb-4 bg-primary/20 rounded-full flex items-center justify-center">
+                  <i className="fas fa-paper-plane text-2xl text-primary"></i>
+                </div>
+                <h3 className="text-lg font-medium text-foreground mb-2">Envio em Massa</h3>
+                <p className="text-muted-foreground mb-4">
+                  Escreva uma mensagem que será enviada para todas as {selectedTargetConnections.length} conexões selecionadas
+                </p>
+              </div>
+            </div>
+
+            {/* Group Message Input */}
+            <div className="border-t border-border p-4">
+              <div className="flex space-x-2">
+                <Input
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      sendToMultipleTargets();
+                    }
+                  }}
+                  placeholder={`Mensagem para ${selectedTargetConnections.length} conexões...`}
+                  className="flex-1"
+                  disabled={sendMessageMutation.isPending}
+                />
+                <Button
+                  onClick={sendToMultipleTargets}
+                  disabled={!newMessage.trim() || sendMessageMutation.isPending || selectedTargetConnections.length === 0}
+                  className="bg-primary hover:bg-primary/80"
+                >
+                  {sendMessageMutation.isPending ? (
+                    <i className="fas fa-spinner fa-spin"></i>
+                  ) : (
+                    <>
+                      <i className="fas fa-paper-plane mr-2"></i>
+                      Enviar para {selectedTargetConnections.length}
+                    </>
+                  )}
+                </Button>
+              </div>
+              <div className="flex justify-between items-center mt-2">
+                <p className="text-xs text-muted-foreground">
+                  Pressione Enter para enviar para todas as conexões selecionadas
+                </p>
+                <p className="text-xs text-primary">
+                  De: {selectedConnection?.name}
+                </p>
+              </div>
+            </div>
+          </div>
         ) : selectedConnectionId ? (
           <div className="flex-1 flex items-center justify-center bg-card">
             <div className="text-center">
               <div className="w-16 h-16 mx-auto mb-4 bg-muted rounded-full flex items-center justify-center">
                 <i className="fas fa-mouse-pointer text-2xl text-muted-foreground"></i>
               </div>
-              <h3 className="text-lg font-medium text-foreground mb-2">Selecione uma conversa</h3>
+              <h3 className="text-lg font-medium text-foreground mb-2">
+                {viewMode === 'individual' ? 'Selecione uma conversa' : 'Selecione conexões para grupo'}
+              </h3>
               <p className="text-muted-foreground">
-                Escolha com qual conexão {selectedConnection?.name} deve conversar
+                {viewMode === 'individual' 
+                  ? `Escolha com qual conexão ${selectedConnection?.name} deve conversar`
+                  : `Escolha múltiplas conexões para ${selectedConnection?.name} enviar mensagens em massa`
+                }
               </p>
             </div>
           </div>
