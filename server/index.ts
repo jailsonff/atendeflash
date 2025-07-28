@@ -70,13 +70,17 @@ app.use((req, res, next) => {
   }, async () => {
     log(`serving on port ${port}`);
     
-    // 🔒 RESTAURAÇÃO AUTOMÁTICA DESABILITADA PARA PREVENIR CONFLITOS
+    // 🔒 INICIALIZAÇÃO COM PRESERVAÇÃO DE CONVERSAS ATIVAS
     setTimeout(async () => {
       try {
         log('🔒 RESTAURAÇÃO AUTOMÁTICA DESABILITADA - Prevenção de conflitos ativada');
+        
+        // ✅ PRESERVAR CONVERSAS ATIVAS: Não resetar conversas que já estavam ativas
+        await storage.preserveActiveConversationsOnRestart();
+        
         const connections = await storage.getWhatsappConnections();
         
-        // RESETAR STATUS PARA FORÇAR CONEXÃO MANUAL
+        // RESETAR STATUS PARA FORÇAR CONEXÃO MANUAL (mas preservar conversas)
         for (const connection of connections) {
           await storage.updateWhatsappConnection(connection.id, { 
             status: 'disconnected',

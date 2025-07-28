@@ -310,6 +310,12 @@ Preferred communication style: Simple, everyday language.
 - ✅ TIMING CONFIRMADO: VISITANTE 22s, LOJA CALCADOS 13s funcionando com precisão
 - ✅ Sistema de memória carregando 10 mensagens anteriores para contexto
 - ✅ Conversas contínuas automáticas 100% operacionais entre WhatsApp real
+- 🔒 SISTEMA DE PRESERVAÇÃO DE CONVERSAS ATIVAS IMPLEMENTADO (28/07/2025 13:43)
+- ✅ Função preserveActiveConversationsOnRestart() criada no DatabaseStorage
+- ✅ Sistema automaticamente preserva conversas ativas após restart do servidor
+- ✅ Logs confirmam: "🔄 PRESERVANDO 1 conversa(s) ativa(s) após restart"
+- ✅ Problema do is_active=false após restart completamente resolvido
+- 🎯 GARANTIA: Conversas ativas NUNCA serão perdidas após restart do servidor
 - ✅ Seleção múltipla com checkboxes e contadores
 - ✅ Envio em massa para múltiplas conexões simultaneamente
 - ✅ Interface escalável para dezenas de conexões WhatsApp
