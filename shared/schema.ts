@@ -57,6 +57,7 @@ export const chatgptConfig = pgTable("chatgpt_config", {
   responseTime: integer("response_time").default(2000), // milliseconds
   autoResponse: boolean("auto_response").default(true),
   keywordTriggers: jsonb("keyword_triggers").default([]),
+  continuousConversations: boolean("continuous_conversations").default(false), // CONTROLE DE CONVERSAS AUTOMÁTICAS
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

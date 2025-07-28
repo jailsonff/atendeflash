@@ -257,6 +257,7 @@ export class MemStorage implements IStorage {
       id,
       responseTime: config.responseTime || null,  
       autoResponse: config.autoResponse !== undefined ? config.autoResponse : null,
+      continuousConversations: config.continuousConversations !== undefined ? config.continuousConversations : null,
       keywordTriggers: config.keywordTriggers || [],
       createdAt: this.chatgptConfig?.createdAt || now,
       updatedAt: now,

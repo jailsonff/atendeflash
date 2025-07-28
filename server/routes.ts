@@ -19,6 +19,13 @@ async function startContinuousConversations(broadcastFn?: (event: string, data: 
   
   continuousConversationInterval = setInterval(async () => {
     try {
+      // 🔒 VERIFICAR SE CONVERSAS AUTOMÁTICAS ESTÃO HABILITADAS
+      const config = await storage.getChatgptConfig();
+      if (!config?.continuousConversations) {
+        console.log(`⏸️ CONVERSAS CONTÍNUAS: Desabilitadas pelo usuário`);
+        return;
+      }
+      
       const connections = await storage.getWhatsappConnections();
       const activeConnections = connections.filter(c => c.status === 'connected');
       

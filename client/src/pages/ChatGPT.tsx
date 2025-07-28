@@ -17,6 +17,7 @@ interface ChatGPTConfig {
   apiKey: string;
   responseTime: number;
   autoResponse: boolean;
+  continuousConversations?: boolean;
   keywordTriggers: string[];
   configured: boolean;
   createdAt: string;
@@ -28,6 +29,7 @@ export default function ChatGPT() {
     apiKey: "",
     responseTime: 2000,
     autoResponse: true,
+    continuousConversations: false,
     keywordTriggers: [] as string[],
   });
   const [newKeyword, setNewKeyword] = useState("");
@@ -51,6 +53,7 @@ export default function ChatGPT() {
         apiKey: "", // Don't show the actual API key
         responseTime: currentConfig.responseTime || 2000,
         autoResponse: currentConfig.autoResponse ?? true,
+        continuousConversations: currentConfig.continuousConversations ?? false,
         keywordTriggers: currentConfig.keywordTriggers || [],
       });
     }
@@ -328,6 +331,24 @@ export default function ChatGPT() {
                 onCheckedChange={(checked) => setConfig(prev => ({ ...prev, autoResponse: checked }))}
               />
             </div>
+
+            <Separator className="bg-gray-700" />
+
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-gray-300 font-medium">Conversas Automáticas Entre Agentes</Label>
+                <p className="text-sm text-gray-400 mt-1">
+                  🔒 Controle total: Agentes iniciam conversas automáticas apenas quando habilitado
+                </p>
+                <p className="text-xs text-orange-400 mt-1">
+                  ⚠️ IMPORTANTE: Com múltiplas conexões, deixe desabilitado para evitar caos
+                </p>
+              </div>
+              <Switch
+                checked={config.continuousConversations}
+                onCheckedChange={(checked) => setConfig(prev => ({ ...prev, continuousConversations: checked }))}
+              />
+            </div>
           </CardContent>
         </Card>
 
@@ -424,6 +445,12 @@ export default function ChatGPT() {
                   <span className="text-gray-400">Respostas Automáticas:</span>
                   <span className={`font-medium ${config.autoResponse ? 'text-green-400' : 'text-gray-400'}`}>
                     {config.autoResponse ? 'Ativadas' : 'Desativadas'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Conversas Automáticas:</span>
+                  <span className={`font-medium ${config.continuousConversations ? 'text-red-400' : 'text-green-400'}`}>
+                    {config.continuousConversations ? 'ATIVADAS (Cuidado!)' : 'Controladas'}
                   </span>
                 </div>
               </div>
