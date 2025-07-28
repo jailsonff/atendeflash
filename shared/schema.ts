@@ -51,6 +51,18 @@ export const agentConnections = pgTable("agent_connections", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Tabela para gerenciar conversas ativas entre pares específicos
+export const activeConversations = pgTable("active_conversations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  connection1Id: varchar("connection1_id").references(() => whatsappConnections.id, { onDelete: 'cascade' }).notNull(),
+  connection2Id: varchar("connection2_id").references(() => whatsappConnections.id, { onDelete: 'cascade' }).notNull(),
+  isActive: boolean("is_active").default(true),
+  startedBy: text("started_by"), // Quem iniciou a conversa
+  lastMessageAt: timestamp("last_message_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 export const chatgptConfig = pgTable("chatgpt_config", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   apiKey: text("api_key").notNull(),
@@ -80,6 +92,12 @@ export const insertAiAgentSchema = createInsertSchema(aiAgents).omit({
   updatedAt: true,
 });
 
+export const insertActiveConversationSchema = createInsertSchema(activeConversations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertChatgptConfigSchema = createInsertSchema(chatgptConfig).omit({
   id: true,
   createdAt: true,
@@ -99,6 +117,9 @@ export type Message = typeof messages.$inferSelect;
 
 export type InsertAiAgent = z.infer<typeof insertAiAgentSchema>;
 export type AiAgent = typeof aiAgents.$inferSelect;
+
+export type InsertActiveConversation = z.infer<typeof insertActiveConversationSchema>;
+export type ActiveConversation = typeof activeConversations.$inferSelect;
 
 export type InsertChatgptConfig = z.infer<typeof insertChatgptConfigSchema>;
 export type ChatgptConfig = typeof chatgptConfig.$inferSelect;

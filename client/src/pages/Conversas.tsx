@@ -244,9 +244,20 @@ export default function Conversas() {
     },
   });
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedConnectionId || !activeChat) return;
     
+    // 🎯 AUTOMATICAMENTE ATIVAR CONVERSA QUANDO USUÁRIO ENVIA MENSAGEM MANUAL
+    try {
+      await apiRequest("POST", `/api/active-conversations/toggle`, {
+        connection1Id: selectedConnectionId,
+        connection2Id: activeChat,
+        startedBy: "user"
+      });
+    } catch (error) {
+      console.log("Aviso: Não foi possível ativar conversa automática:", error);
+    }
+
     sendMessageMutation.mutate({
       content: newMessage,
       fromConnectionId: selectedConnectionId,

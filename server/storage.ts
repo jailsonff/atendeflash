@@ -6,7 +6,9 @@ import {
   type AiAgent,
   type InsertAiAgent,
   type ChatgptConfig,
-  type InsertChatgptConfig
+  type InsertChatgptConfig,
+  type ActiveConversation,
+  type InsertActiveConversation
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 
@@ -41,6 +43,14 @@ export interface IStorage {
   // ChatGPT Config
   getChatgptConfig(): Promise<ChatgptConfig | undefined>;
   createOrUpdateChatgptConfig(config: InsertChatgptConfig): Promise<ChatgptConfig>;
+  
+  // Active Conversations
+  getActiveConversations(): Promise<ActiveConversation[]>;
+  getActiveConversation(connection1Id: string, connection2Id: string): Promise<ActiveConversation | undefined>;
+  createActiveConversation(conversation: InsertActiveConversation): Promise<ActiveConversation>;
+  updateActiveConversation(id: string, updates: Partial<ActiveConversation>): Promise<ActiveConversation>;
+  deleteActiveConversation(id: string): Promise<void>;
+  toggleConversationStatus(connection1Id: string, connection2Id: string, startedBy?: string): Promise<ActiveConversation>;
 }
 
 export class MemStorage implements IStorage {
@@ -48,12 +58,14 @@ export class MemStorage implements IStorage {
   private messages: Map<string, Message>;
   private agents: Map<string, AiAgent>;
   private chatgptConfig: ChatgptConfig | undefined;
+  private activeConversations: Map<string, ActiveConversation>;
 
   constructor() {
     this.connections = new Map();
     this.messages = new Map();
     this.agents = new Map();
     this.chatgptConfig = undefined;
+    this.activeConversations = new Map();
   }
 
   async getWhatsappConnections(): Promise<WhatsappConnection[]> {
@@ -265,6 +277,74 @@ export class MemStorage implements IStorage {
     
     return this.chatgptConfig;
   }
+
+  // Active Conversations - MemStorage
+  async getActiveConversations(): Promise<ActiveConversation[]> {
+    return Array.from(this.activeConversations.values());
+  }
+
+  async getActiveConversation(connection1Id: string, connection2Id: string): Promise<ActiveConversation | undefined> {
+    return Array.from(this.activeConversations.values()).find(conv => 
+      (conv.connection1Id === connection1Id && conv.connection2Id === connection2Id) ||
+      (conv.connection1Id === connection2Id && conv.connection2Id === connection1Id)
+    );
+  }
+
+  async createActiveConversation(conversation: InsertActiveConversation): Promise<ActiveConversation> {
+    const id = randomUUID();
+    const now = new Date();
+    const newConversation: ActiveConversation = {
+      ...conversation,
+      id,
+      isActive: conversation.isActive !== undefined ? conversation.isActive : true,
+      lastMessageAt: conversation.lastMessageAt || now,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.activeConversations.set(id, newConversation);
+    return newConversation;
+  }
+
+  async updateActiveConversation(id: string, updates: Partial<ActiveConversation>): Promise<ActiveConversation> {
+    const conversation = this.activeConversations.get(id);
+    if (!conversation) {
+      throw new Error("Active conversation not found");
+    }
+    const updated = { ...conversation, ...updates, updatedAt: new Date() };
+    this.activeConversations.set(id, updated);
+    return updated;
+  }
+
+  async deleteActiveConversation(id: string): Promise<void> {
+    this.activeConversations.delete(id);
+  }
+
+  async toggleConversationStatus(connection1Id: string, connection2Id: string, startedBy?: string): Promise<ActiveConversation> {
+    const existing = await this.getActiveConversation(connection1Id, connection2Id);
+    
+    if (existing) {
+      if (existing.isActive) {
+        // Desativar conversa existente
+        return await this.updateActiveConversation(existing.id, { isActive: false });
+      } else {
+        // Reativar conversa existente
+        return await this.updateActiveConversation(existing.id, { 
+          isActive: true, 
+          lastMessageAt: new Date(),
+          startedBy: startedBy || existing.startedBy 
+        });
+      }
+    } else {
+      // Criar nova conversa ativa
+      return await this.createActiveConversation({
+        connection1Id,
+        connection2Id,
+        isActive: true,
+        startedBy: startedBy || "user",
+        lastMessageAt: new Date()
+      });
+    }
+  }
 }
 
 // Import database and create DatabaseStorage
@@ -273,7 +353,8 @@ import {
   whatsappConnections, 
   messages, 
   aiAgents, 
-  chatgptConfig 
+  chatgptConfig,
+  activeConversations
 } from "@shared/schema";
 import { eq, desc, and, or } from "drizzle-orm";
 
@@ -493,6 +574,79 @@ export class DatabaseStorage implements IStorage {
         })
         .returning();
       return newConfig;
+    }
+  }
+
+  // Active Conversations - DatabaseStorage
+  async getActiveConversations(): Promise<ActiveConversation[]> {
+    return await db.select().from(activeConversations)
+      .where(eq(activeConversations.isActive, true))
+      .orderBy(desc(activeConversations.lastMessageAt));
+  }
+
+  async getActiveConversation(connection1Id: string, connection2Id: string): Promise<ActiveConversation | undefined> {
+    const [conversation] = await db.select().from(activeConversations)
+      .where(
+        or(
+          and(eq(activeConversations.connection1Id, connection1Id), eq(activeConversations.connection2Id, connection2Id)),
+          and(eq(activeConversations.connection1Id, connection2Id), eq(activeConversations.connection2Id, connection1Id))
+        )
+      );
+    return conversation || undefined;
+  }
+
+  async createActiveConversation(conversation: InsertActiveConversation): Promise<ActiveConversation> {
+    const [newConversation] = await db
+      .insert(activeConversations)
+      .values({
+        ...conversation,
+        id: randomUUID(),
+        isActive: conversation.isActive !== undefined ? conversation.isActive : true,
+        lastMessageAt: conversation.lastMessageAt || new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date()
+      })
+      .returning();
+    return newConversation;
+  }
+
+  async updateActiveConversation(id: string, updates: Partial<ActiveConversation>): Promise<ActiveConversation> {
+    const [updatedConversation] = await db
+      .update(activeConversations)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(activeConversations.id, id))
+      .returning();
+    return updatedConversation;
+  }
+
+  async deleteActiveConversation(id: string): Promise<void> {
+    await db.delete(activeConversations).where(eq(activeConversations.id, id));
+  }
+
+  async toggleConversationStatus(connection1Id: string, connection2Id: string, startedBy?: string): Promise<ActiveConversation> {
+    const existing = await this.getActiveConversation(connection1Id, connection2Id);
+    
+    if (existing) {
+      if (existing.isActive) {
+        // Desativar conversa existente
+        return await this.updateActiveConversation(existing.id, { isActive: false });
+      } else {
+        // Reativar conversa existente
+        return await this.updateActiveConversation(existing.id, { 
+          isActive: true, 
+          lastMessageAt: new Date(),
+          startedBy: startedBy || existing.startedBy 
+        });
+      }
+    } else {
+      // Criar nova conversa ativa
+      return await this.createActiveConversation({
+        connection1Id,
+        connection2Id,
+        isActive: true,
+        startedBy: startedBy || "user",
+        lastMessageAt: new Date()
+      });
     }
   }
 }

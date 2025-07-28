@@ -19,10 +19,10 @@ async function startContinuousConversations(broadcastFn?: (event: string, data: 
   
   continuousConversationInterval = setInterval(async () => {
     try {
-      // 🔒 VERIFICAR SE CONVERSAS AUTOMÁTICAS ESTÃO HABILITADAS
-      const config = await storage.getChatgptConfig();
-      if (!config?.continuousConversations) {
-        console.log(`⏸️ CONVERSAS CONTÍNUAS: Desabilitadas pelo usuário`);
+      // 🔒 NOVA LÓGICA: Verificar conversas ativas específicas ao invés de global
+      const activeConversations = await storage.getActiveConversations();
+      if (activeConversations.length === 0) {
+        console.log(`⏸️ CONVERSAS CONTÍNUAS: Nenhuma conversa específica ativa`);
         return;
       }
       
@@ -43,29 +43,25 @@ async function startContinuousConversations(broadcastFn?: (event: string, data: 
         return;
       }
       
-      // Escolher aleatoriamente um agente iniciador e um alvo
-      const initiatorAgentIndex = Math.floor(Math.random() * allActiveAgents.length);
-      let targetAgentIndex = Math.floor(Math.random() * allActiveAgents.length);
+      // 🎯 NOVA LÓGICA: Escolher par de conexões baseado em conversas ativas
+      const activeConversation = activeConversations[Math.floor(Math.random() * activeConversations.length)];
       
-      // Garantir que o alvo seja diferente do iniciador
-      while (targetAgentIndex === initiatorAgentIndex && allActiveAgents.length > 1) {
-        targetAgentIndex = Math.floor(Math.random() * allActiveAgents.length);
+      const initiatorConnection = activeConnections.find(c => c.id === activeConversation.connection1Id);
+      const targetConnection = activeConnections.find(c => c.id === activeConversation.connection2Id);
+      
+      if (!initiatorConnection || !targetConnection) {
+        console.log(`⚠️ CONVERSAS CONTÍNUAS: Conexões da conversa ativa não encontradas ou desconectadas`);
+        return;
       }
       
-      const initiatorAgent = allActiveAgents[initiatorAgentIndex];
-      const targetAgent = allActiveAgents[targetAgentIndex];
+      // Buscar agentes para as conexões específicas
+      const initiatorAgent = allActiveAgents.find(agent => agent.connectionId === initiatorConnection.id);
+      const targetAgent = allActiveAgents.find(agent => agent.connectionId === targetConnection.id);
       
-      // Escolher aleatoriamente conexões para cada agente
-      const initiatorConnectionIndex = Math.floor(Math.random() * activeConnections.length);
-      let targetConnectionIndex = Math.floor(Math.random() * activeConnections.length);
-      
-      // Garantir que as conexões sejam diferentes
-      while (targetConnectionIndex === initiatorConnectionIndex && activeConnections.length > 1) {
-        targetConnectionIndex = Math.floor(Math.random() * activeConnections.length);
+      if (!initiatorAgent || !targetAgent) {
+        console.log(`⚠️ CONVERSAS CONTÍNUAS: Agentes não encontrados para ${initiatorConnection.name} ou ${targetConnection.name}`);
+        return;
       }
-      
-      const initiatorConnection = activeConnections[initiatorConnectionIndex];
-      const targetConnection = activeConnections[targetConnectionIndex];
       
       // Verificar última mensagem entre essas duas conexões específicas para evitar spam
       const recentMessages = await storage.getConversation(initiatorConnection.id, targetConnection.id);
@@ -762,6 +758,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error clearing conversation:', error);
       res.status(500).json({ message: "Erro ao limpar conversa: " + (error as Error).message });
+    }
+  });
+
+  // 🎯 NOVA API: Gerenciar conversas ativas
+  app.get("/api/active-conversations", async (req, res) => {
+    try {
+      const conversations = await storage.getActiveConversations();
+      res.json(conversations);
+    } catch (error) {
+      console.error("Erro ao buscar conversas ativas:", error);
+      res.status(500).json({ error: "Failed to fetch active conversations" });
+    }
+  });
+
+  app.post("/api/active-conversations/toggle", async (req, res) => {
+    try {
+      const { connection1Id, connection2Id, startedBy = "user" } = req.body;
+      
+      if (!connection1Id || !connection2Id) {
+        return res.status(400).json({ error: "connection1Id and connection2Id are required" });
+      }
+
+      const conversation = await storage.toggleConversationStatus(connection1Id, connection2Id, startedBy);
+      
+      // Broadcast para notificar interface em tempo real
+      io.emit('active_conversation_update', {
+        conversation,
+        action: conversation.isActive ? 'activated' : 'deactivated'
+      });
+
+      console.log(`🎯 CONVERSA ${conversation.isActive ? 'ATIVADA' : 'DESATIVADA'}: ${connection1Id} ↔ ${connection2Id} (iniciado por: ${startedBy})`);
+      
+      res.json({ 
+        success: true, 
+        conversation,
+        message: `Conversa ${conversation.isActive ? 'ativada' : 'desativada'} com sucesso`
+      });
+    } catch (error) {
+      console.error("Erro ao alternar conversa:", error);
+      res.status(500).json({ error: "Failed to toggle conversation status" });
     }
   });
 
