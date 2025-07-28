@@ -1,9 +1,5 @@
 import OpenAI from "openai";
-
-// the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-const openai = new OpenAI({ 
-  apiKey: process.env.OPENAI_API_KEY
-});
+import { storage } from "../storage";
 
 export interface AgentResponse {
   messages: string[];
@@ -11,6 +7,32 @@ export interface AgentResponse {
 }
 
 export class OpenAIService {
+  private openai: OpenAI | null = null;
+
+  // 🔒 CORREÇÃO CRÍTICA: Buscar API key do banco antes do ambiente
+  private async getOpenAIClient(): Promise<OpenAI> {
+    if (this.openai) return this.openai;
+
+    let apiKey = process.env.OPENAI_API_KEY;
+    
+    // Primeiro: tentar buscar do banco de dados
+    try {
+      const config = await storage.getChatgptConfig();
+      if (config?.apiKey) {
+        apiKey = config.apiKey;
+        console.log("✅ OpenAI API Key carregada do banco de dados");
+      }
+    } catch (error) {
+      console.log("⚠️ Erro ao buscar config do banco, usando variável de ambiente");
+    }
+
+    if (!apiKey) {
+      throw new Error("🔑 API Key do OpenAI não encontrada. Configure em ChatGPT Config ou variável OPENAI_API_KEY");
+    }
+
+    this.openai = new OpenAI({ apiKey });
+    return this.openai;
+  }
   async generateAgentResponse(
     persona: string,
     userMessage: string,
@@ -19,6 +41,8 @@ export class OpenAIService {
     maxTokens: number = 500
   ): Promise<AgentResponse> {
     try {
+      const openai = await this.getOpenAIClient();
+      
       const systemPrompt = `Você é um agente de atendimento virtual com a seguinte persona: ${persona}. 
       Responda de forma natural, útil e sempre mantendo o tom da persona definida. 
       Mantenha as respostas concisas e diretas para WhatsApp.
@@ -68,6 +92,7 @@ export class OpenAIService {
     try {
       if (keywords.length === 0) return false;
 
+      const openai = await this.getOpenAIClient();
       const response = await openai.chat.completions.create({
         model: "gpt-4o",
         messages: [
