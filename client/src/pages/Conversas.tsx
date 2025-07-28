@@ -36,6 +36,32 @@ interface Agent {
   connectionId: string;
 }
 
+// 🎨 SISTEMA DE CORES DINÂMICAS - Cada conexão tem sua própria cor
+const CONNECTION_COLORS = [
+  { name: 'Turquesa', border: 'border-cyan-400', bg: 'bg-cyan-50 dark:bg-cyan-950/20', text: 'text-cyan-600 dark:text-cyan-400', badge: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900 dark:text-cyan-300' },
+  { name: 'Rosa', border: 'border-pink-400', bg: 'bg-pink-50 dark:bg-pink-950/20', text: 'text-pink-600 dark:text-pink-400', badge: 'bg-pink-100 text-pink-700 dark:bg-pink-900 dark:text-pink-300' },
+  { name: 'Violeta', border: 'border-purple-400', bg: 'bg-purple-50 dark:bg-purple-950/20', text: 'text-purple-600 dark:text-purple-400', badge: 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300' },
+  { name: 'Verde', border: 'border-green-400', bg: 'bg-green-50 dark:bg-green-950/20', text: 'text-green-600 dark:text-green-400', badge: 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' },
+  { name: 'Amarelo', border: 'border-yellow-400', bg: 'bg-yellow-50 dark:bg-yellow-950/20', text: 'text-yellow-600 dark:text-yellow-400', badge: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300' },
+  { name: 'Azul', border: 'border-blue-400', bg: 'bg-blue-50 dark:bg-blue-950/20', text: 'text-blue-600 dark:text-blue-400', badge: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' },
+  { name: 'Índigo', border: 'border-indigo-400', bg: 'bg-indigo-50 dark:bg-indigo-950/20', text: 'text-indigo-600 dark:text-indigo-400', badge: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300' },
+  { name: 'Laranja', border: 'border-orange-400', bg: 'bg-orange-50 dark:bg-orange-950/20', text: 'text-orange-600 dark:text-orange-400', badge: 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300' },
+  { name: 'Teal', border: 'border-teal-400', bg: 'bg-teal-50 dark:bg-teal-950/20', text: 'text-teal-600 dark:text-teal-400', badge: 'bg-teal-100 text-teal-700 dark:bg-teal-900 dark:text-teal-300' },
+  { name: 'Esmeralda', border: 'border-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-950/20', text: 'text-emerald-600 dark:text-emerald-400', badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300' },
+  { name: 'Vermelho', border: 'border-red-400', bg: 'bg-red-50 dark:bg-red-950/20', text: 'text-red-600 dark:text-red-400', badge: 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300' },
+  { name: 'Slate', border: 'border-slate-400', bg: 'bg-slate-50 dark:bg-slate-950/20', text: 'text-slate-600 dark:text-slate-400', badge: 'bg-slate-100 text-slate-700 dark:bg-slate-900 dark:text-slate-300' }
+];
+
+// Função para obter cor da conexão baseada no ID (consistente entre reloads)
+const getConnectionColor = (connectionId: string) => {
+  const hash = connectionId.split('').reduce((a, b) => {
+    a = ((a << 5) - a) + b.charCodeAt(0);
+    return a & a;
+  }, 0);
+  const index = Math.abs(hash) % CONNECTION_COLORS.length;
+  return CONNECTION_COLORS[index];
+};
+
 export default function Conversas() {
   const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
   const [activeChat, setActiveChat] = useState<string | null>(null);
@@ -381,35 +407,41 @@ export default function Conversas() {
           <ScrollArea className="flex-1">
             <div className="p-4 space-y-3">
               {filteredConnections.length > 0 ? (
-                filteredConnections.map(connection => (
-                  <Card 
-                    key={connection.id}
-                    className={`cursor-pointer transition-all border ${
-                      selectedConnectionId === connection.id 
-                        ? 'border-primary bg-primary/5' 
-                        : 'border-border hover:border-primary/50'
-                    }`}
-                    onClick={() => {
-                      setSelectedConnectionId(connection.id);
-                      setActiveChat(null);
-                    }}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center">
-                          <i className="fas fa-whatsapp text-primary"></i>
+                filteredConnections.map(connection => {
+                  const connectionColor = getConnectionColor(connection.id);
+                  return (
+                    <Card 
+                      key={connection.id}
+                      className={`cursor-pointer transition-all border-2 ${
+                        selectedConnectionId === connection.id 
+                          ? `${connectionColor.border} ${connectionColor.bg}` 
+                          : `border-border hover:${connectionColor.border}`
+                      }`}
+                      onClick={() => {
+                        setSelectedConnectionId(connection.id);
+                        setActiveChat(null);
+                      }}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-center space-x-3">
+                          <div className={`w-10 h-10 ${connectionColor.bg} rounded-full flex items-center justify-center`}>
+                            <i className={`fas fa-whatsapp ${connectionColor.text}`}></i>
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-medium text-foreground flex items-center gap-2">
+                              {connection.name}
+                              <div className={`w-3 h-3 rounded-full ${connectionColor.border.replace('border-', 'bg-')}`} title={`Cor: ${connectionColor.name}`}></div>
+                            </h4>
+                            <p className="text-sm text-muted-foreground">{connection.phoneNumber}</p>
+                          </div>
+                          {selectedConnectionId === connection.id && (
+                            <Badge className={connectionColor.badge}>Selecionado</Badge>
+                          )}
                         </div>
-                        <div className="flex-1">
-                          <h4 className="font-medium text-foreground">{connection.name}</h4>
-                          <p className="text-sm text-muted-foreground">{connection.phoneNumber}</p>
-                        </div>
-                        {selectedConnectionId === connection.id && (
-                          <Badge variant="default">Selecionado</Badge>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
+                      </CardContent>
+                    </Card>
+                  );
+                })
               ) : (
                 <div className="text-center py-4">
                   <i className="fas fa-search text-2xl text-muted-foreground mb-2"></i>
@@ -458,39 +490,61 @@ export default function Conversas() {
                     );
                   }
 
-                  return conversations.map((conv) => (
-                    <Card 
-                      key={conv.partnerId}
-                      className={`cursor-pointer transition-all border ${
-                        activeChat === conv.partnerId 
-                          ? 'border-primary bg-primary/5' 
-                          : 'border-border hover:border-primary/50'
-                      }`}
-                      onClick={() => setActiveChat(conv.partnerId)}
-                    >
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <h5 className="font-medium text-foreground">{conv.partnerName}</h5>
-                            <p className="text-sm text-muted-foreground truncate">
-                              {conv.lastMessage}
-                            </p>
+                  return conversations.map((conv) => {
+                    const selectedConnectionColor = getConnectionColor(selectedConnectionId);
+                    return (
+                      <Card 
+                        key={conv.partnerId}
+                        className={`cursor-pointer transition-all border-2 ${
+                          activeChat === conv.partnerId 
+                            ? `${selectedConnectionColor.border} ${selectedConnectionColor.bg}` 
+                            : `border-border hover:${selectedConnectionColor.border}`
+                        }`}
+                        onClick={() => setActiveChat(conv.partnerId)}
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <h5 className="font-medium text-foreground flex items-center gap-2">
+                                {conv.partnerName}
+                                <div className={`w-3 h-3 rounded-full ${selectedConnectionColor.border.replace('border-', 'bg-')}`} title={`Grupo de ${selectedConnection?.name}`}></div>
+                              </h5>
+                              <p className="text-sm text-muted-foreground truncate">
+                                {conv.lastMessage}
+                              </p>
+                            </div>
+                            <div className="text-right ml-4 flex flex-col items-end gap-1">
+                              <Badge className={`text-xs ${selectedConnectionColor.badge}`}>
+                                {conv.messageCount}
+                              </Badge>
+                              <p className="text-xs text-muted-foreground">
+                                {new Date(conv.lastTime).toLocaleTimeString('pt-BR', {
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </p>
+                              {/* Botão Lixeira */}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  clearConversationMutation.mutate({
+                                    connectionId1: selectedConnectionId,
+                                    connectionId2: conv.partnerId
+                                  });
+                                }}
+                                className="w-6 h-6 p-0 text-muted-foreground hover:text-destructive"
+                                disabled={clearConversationMutation.isPending}
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </div>
                           </div>
-                          <div className="text-right ml-4">
-                            <Badge variant="secondary" className="text-xs">
-                              {conv.messageCount}
-                            </Badge>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {new Date(conv.lastTime).toLocaleTimeString('pt-BR', {
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}
-                            </p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ));
+                        </CardContent>
+                      </Card>
+                    );
+                  });
                 })()}
               </div>
             </ScrollArea>
@@ -560,15 +614,18 @@ export default function Conversas() {
         {activeChat && selectedConnectionId && viewMode === 'individual' ? (
           <div className="flex-1 flex flex-col bg-card">
             {/* Chat Header */}
-            <div className="px-6 py-4 border-b border-border bg-card">
+            <div className={`px-6 py-4 border-b border-border bg-card ${getConnectionColor(selectedConnectionId).bg}`}>
               <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold text-foreground">
-                    {selectedConnection?.name} → {activeConnection?.name}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    Conversa entre duas conexões WhatsApp
-                  </p>
+                <div className="flex items-center gap-3">
+                  <div className={`w-3 h-3 rounded-full ${getConnectionColor(selectedConnectionId).border.replace('border-', 'bg-')}`}></div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-foreground">
+                      {selectedConnection?.name} → {activeConnection?.name}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Conversa entre duas conexões WhatsApp • Grupo {getConnectionColor(selectedConnectionId).name}
+                    </p>
+                  </div>
                 </div>
                 <Button
                   variant="outline"
@@ -601,6 +658,7 @@ export default function Conversas() {
                   activeChatMessages.map((message) => {
                     const isFromSelected = message.fromConnectionId === selectedConnectionId;
                     const senderConnection = connections.find(c => c.id === message.fromConnectionId);
+                    const senderColor = senderConnection ? getConnectionColor(senderConnection.id) : getConnectionColor(selectedConnectionId);
                     
                     return (
                       <div
@@ -612,9 +670,9 @@ export default function Conversas() {
                         <div
                           className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
                             message.isFromAgent
-                              ? "bg-pink-500"
+                              ? `${senderColor.bg} border-2 ${senderColor.border}`
                               : isFromSelected
-                              ? "bg-primary"
+                              ? `${senderColor.bg} border-2 ${senderColor.border}`
                               : "bg-muted-foreground"
                           }`}
                         >
@@ -623,25 +681,32 @@ export default function Conversas() {
                               message.isFromAgent
                                 ? "fa-robot"
                                 : "fa-whatsapp"
-                            } text-white text-xs`}
+                            } ${message.isFromAgent || isFromSelected ? senderColor.text : 'text-white'} text-xs`}
                           ></i>
                         </div>
                         <div className="flex-1 max-w-xs">
                           {!isFromSelected && (
-                            <p className="text-xs text-muted-foreground mb-1">
-                              {senderConnection?.name || 'Desconhecido'}
+                            <p className="text-xs mb-1 flex items-center gap-1">
+                              <span className={senderColor.text}>
+                                {senderConnection?.name || 'Desconhecido'}
+                              </span>
+                              <div className={`w-2 h-2 rounded-full ${senderColor.border.replace('border-', 'bg-')}`}></div>
                             </p>
                           )}
                           <div
                             className={`rounded-lg px-3 py-2 ${
                               isFromSelected
-                                ? "bg-primary text-primary-foreground"
+                                ? `${senderColor.bg} border-2 ${senderColor.border}`
                                 : message.isFromAgent
-                                ? "bg-pink-500/20 border border-pink-500/30"
+                                ? `${senderColor.bg} border-2 ${senderColor.border}`
                                 : "bg-muted"
                             }`}
                           >
-                            <p className="text-sm">{message.content}</p>
+                            <p className={`text-sm ${
+                              isFromSelected || message.isFromAgent 
+                                ? senderColor.text 
+                                : 'text-foreground'
+                            }`}>{message.content}</p>
                           </div>
                           <div className="flex items-center justify-between mt-1">
                             <p className="text-xs text-muted-foreground">
@@ -651,9 +716,9 @@ export default function Conversas() {
                               })}
                             </p>
                             {message.isFromAgent && (
-                              <Badge variant="secondary" className="text-xs">
+                              <Badge className={`text-xs ${senderColor.badge}`}>
                                 <i className="fas fa-robot mr-1"></i>
-                                IA
+                                IA {senderColor.name}
                               </Badge>
                             )}
                           </div>
