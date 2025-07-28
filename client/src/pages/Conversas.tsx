@@ -28,14 +28,6 @@ interface Message {
   agentId?: string;
 }
 
-interface Conversation {
-  connectionId: string;
-  connectionName: string;
-  lastMessage?: string;
-  lastMessageTime?: string;
-  unreadCount: number;
-}
-
 interface Agent {
   id: string;
   name: string;
@@ -46,10 +38,9 @@ interface Agent {
 
 export default function Conversas() {
   const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
-  const [selectedTargetConnections, setSelectedTargetConnections] = useState<string[]>([]);
+  const [activeChat, setActiveChat] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState("");
   const [globalAgentsPaused, setGlobalAgentsPaused] = useState(false);
-  const [activeChat, setActiveChat] = useState<string | null>(null); // Para chat individual ativo
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   const { toast } = useToast();
@@ -61,7 +52,7 @@ export default function Conversas() {
 
   const { data: allMessages = [] } = useQuery<Message[]>({
     queryKey: ["/api/messages"],
-    refetchInterval: 5000, // Refresh every 5 seconds
+    refetchInterval: 5000,
   });
 
   const { data: agents = [] } = useQuery<Agent[]>({
@@ -69,7 +60,6 @@ export default function Conversas() {
     refetchInterval: 5000,
   });
 
-  // Check if all agents are paused on component mount
   useEffect(() => {
     if (agents.length > 0) {
       const allAgentsPaused = agents.every(agent => agent.isPaused);
@@ -81,10 +71,8 @@ export default function Conversas() {
   const activeChatMessages = allMessages.filter(message => {
     if (!activeChat || !selectedConnectionId) return false;
     
-    // Show messages between the selected connection and the active chat target
     return ((message.fromConnectionId === selectedConnectionId && message.toConnectionId === activeChat) ||
             (message.fromConnectionId === activeChat && message.toConnectionId === selectedConnectionId)) &&
-           // Only show inter-connection messages (not system messages)
            message.fromConnectionId !== 'system' && 
            message.toConnectionId !== 'system';
   }).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
@@ -97,7 +85,6 @@ export default function Conversas() {
              message.toConnectionId !== 'system';
     });
 
-    // Group by conversation partner
     const conversationMap = new Map<string, { 
       partnerId: string, 
       partnerName: string, 
@@ -147,7 +134,6 @@ export default function Conversas() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/messages"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
       setNewMessage("");
       toast({
         title: "Mensagem enviada",
@@ -162,16 +148,6 @@ export default function Conversas() {
       });
     },
   });
-
-  const handleConnectionSelect = (connectionId: string) => {
-    setSelectedConnectionId(connectionId);
-    setActiveChat(null); // Reset active chat when switching connection
-    setSelectedTargetConnections([]);
-  };
-
-  const handleChatSelect = (targetConnectionId: string) => {
-    setActiveChat(targetConnectionId);
-  };
 
   const clearConversationMutation = useMutation({
     mutationFn: async ({ connectionId1, connectionId2 }: { connectionId1: string; connectionId2: string }) => {
@@ -239,32 +215,15 @@ export default function Conversas() {
     },
   });
 
-  // Scroll to bottom when new messages arrive
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [activeChatMessages]);
-
-  // Create conversations list from connections and messages
-  const conversations: Conversation[] = connections
-    .filter(conn => conn.status === 'connected')
-    .map(connection => {
-      const connectionMessages = allMessages.filter(
-        msg => msg.fromConnectionId === connection.id || msg.toConnectionId === connection.id
-      );
-      
-      const lastMessage = connectionMessages
-        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
-      
-      return {
-        connectionId: connection.id,
-        connectionName: connection.name,
-        lastMessage: lastMessage?.content,
-        lastMessageTime: lastMessage?.timestamp,
-        unreadCount: 0, // Would be calculated based on read status
-      };
+  const handleSendMessage = () => {
+    if (!newMessage.trim() || !selectedConnectionId || !activeChat) return;
+    
+    sendMessageMutation.mutate({
+      content: newMessage,
+      fromConnectionId: selectedConnectionId,
+      toConnectionId: activeChat,
     });
-
-
+  };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -273,7 +232,12 @@ export default function Conversas() {
     }
   };
 
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [activeChatMessages]);
+
   const selectedConnection = connections.find(c => c.id === selectedConnectionId);
+  const activeConnection = connections.find(c => c.id === activeChat);
 
   return (
     <>
@@ -283,7 +247,7 @@ export default function Conversas() {
           <div>
             <h2 className="text-2xl font-bold text-foreground">Conversas</h2>
             <p className="text-muted-foreground text-sm">
-              Chat em tempo real entre conexões do sistema
+              Selecione uma conexão e escolha com quem conversar
             </p>
           </div>
           <div className="flex items-center space-x-3">
@@ -337,260 +301,294 @@ export default function Conversas() {
         </div>
       </header>
 
-      {/* Chat Interface */}
+      {/* Main Content */}
       <main className="flex-1 flex overflow-hidden">
-        {/* Conversations List */}
-        <div className="w-80 bg-card border-r border-border flex flex-col">
+        {/* Connection Selection */}
+        <div className="w-80 bg-card border-r border-border">
           <div className="p-4 border-b border-border">
-            <h3 className="font-semibold text-foreground">Conexões Ativas</h3>
-            <p className="text-sm text-muted-foreground">
-              {conversations.length} {conversations.length === 1 ? 'conversa' : 'conversas'}
-            </p>
+            <h3 className="font-semibold text-foreground">Selecionar Conexão</h3>
+            <p className="text-sm text-muted-foreground">Escolha quem vai enviar mensagens</p>
           </div>
-          
           <ScrollArea className="flex-1">
-            {conversations.length === 0 ? (
-              <div className="p-4 text-center text-muted-foreground">
-                <i className="fas fa-comments text-4xl mb-2 opacity-50"></i>
-                <p className="text-sm">Nenhuma conexão ativa</p>
-                <p className="text-xs">Conecte um WhatsApp primeiro</p>
-              </div>
-            ) : (
-              <div className="space-y-1 p-2">
-                {conversations.map((conversation) => (
-                  <div
-                    key={conversation.connectionId}
-                    className={`p-3 rounded-lg cursor-pointer transition-colors ${
-                      selectedConnectionId === conversation.connectionId
-                        ? 'bg-primary/20 border border-primary/30'
-                        : 'hover:bg-muted'
+            <div className="p-4 space-y-3">
+              {connections
+                .filter(conn => conn.status === 'connected')
+                .map(connection => (
+                  <Card 
+                    key={connection.id}
+                    className={`cursor-pointer transition-all border ${
+                      selectedConnectionId === connection.id 
+                        ? 'border-primary bg-primary/5' 
+                        : 'border-border hover:border-primary/50'
                     }`}
+                    onClick={() => {
+                      setSelectedConnectionId(connection.id);
+                      setActiveChat(null);
+                    }}
                   >
-                    <div className="flex items-center gap-3">
-                      <div 
-                        className="flex items-center space-x-3 flex-1 min-w-0 cursor-pointer"
-                        onClick={() => setSelectedConnectionId(conversation.connectionId)}
-                      >
-                        <div className="relative flex-shrink-0">
-                          <div className="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center">
-                            <i className="fab fa-whatsapp text-green-400"></i>
-                          </div>
-                          <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-dark-secondary"></div>
+                    <CardContent className="p-4">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center">
+                          <i className="fas fa-whatsapp text-primary"></i>
                         </div>
-                        <div className="flex-1 min-w-0 max-w-[180px]">
-                          <p className="font-medium text-white truncate">
-                            {conversation.connectionName}
-                          </p>
-                          {conversation.lastMessage && (
-                            <p className="text-sm text-gray-400 truncate">
-                              {conversation.lastMessage.length > 30 
-                                ? conversation.lastMessage.substring(0, 30) + '...'
-                                : conversation.lastMessage
-                              }
-                            </p>
-                          )}
+                        <div className="flex-1">
+                          <h4 className="font-medium text-foreground">{connection.name}</h4>
+                          <p className="text-sm text-muted-foreground">{connection.phoneNumber}</p>
                         </div>
-                      </div>
-                      
-                      <div className="flex flex-col items-end space-y-1 flex-shrink-0 w-16">
-                        {conversation.lastMessageTime && (
-                          <p className="text-xs text-gray-400">
-                            {new Date(conversation.lastMessageTime).toLocaleTimeString('pt-BR', {
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
-                          </p>
+                        {selectedConnectionId === connection.id && (
+                          <Badge variant="default">Selecionado</Badge>
                         )}
-                        <div className="flex items-center justify-end w-full">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              // Find the other active connection to clear conversation between both
-                              const otherConnection = connections.find(conn => 
-                                conn.id !== conversation.connectionId && conn.status === 'connected'
-                              );
-                              if (otherConnection) {
-                                clearConversationMutation.mutate({
-                                  connectionId1: conversation.connectionId,
-                                  connectionId2: otherConnection.id
-                                });
-                              }
-                            }}
-                            disabled={clearConversationMutation.isPending}
-                            className="h-8 w-8 p-0 text-red-400 hover:text-red-500 hover:bg-red-400/20 border border-red-400/30 rounded-md"
-                            title="Limpar conversa"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                          {conversation.unreadCount > 0 && (
-                            <Badge className="bg-[hsl(328,100%,54%)] text-white text-xs ml-1">
-                              {conversation.unreadCount}
-                            </Badge>
-                          )}
-                        </div>
                       </div>
-                    </div>
-                  </div>
+                    </CardContent>
+                  </Card>
                 ))}
-              </div>
-            )}
+              
+              {connections.filter(conn => conn.status === 'connected').length === 0 && (
+                <div className="text-center py-8">
+                  <div className="w-16 h-16 mx-auto mb-4 bg-muted rounded-full flex items-center justify-center">
+                    <i className="fas fa-plug text-2xl text-muted-foreground"></i>
+                  </div>
+                  <h3 className="text-lg font-medium text-foreground mb-2">Nenhuma conexão ativa</h3>
+                  <p className="text-muted-foreground text-sm">Conecte pelo menos uma conta WhatsApp</p>
+                </div>
+              )}
+            </div>
           </ScrollArea>
         </div>
 
+        {/* Conversation Selection */}
+        {selectedConnectionId && (
+          <div className="w-80 bg-card border-r border-border">
+            <div className="p-4 border-b border-border">
+              <h3 className="font-semibold text-foreground">Conversas de {selectedConnection?.name}</h3>
+              <p className="text-sm text-muted-foreground">Escolha com quem conversar</p>
+            </div>
+            <ScrollArea className="flex-1">
+              <div className="p-4 space-y-3">
+                {(() => {
+                  const conversations = getConversationsForConnection(selectedConnectionId);
+                  
+                  if (conversations.length === 0) {
+                    return (
+                      <div className="text-center py-8">
+                        <div className="w-16 h-16 mx-auto mb-4 bg-muted rounded-full flex items-center justify-center">
+                          <i className="fas fa-comments text-2xl text-muted-foreground"></i>
+                        </div>
+                        <h3 className="text-lg font-medium text-foreground mb-2">Nenhuma conversa ativa</h3>
+                        <p className="text-muted-foreground text-sm">
+                          {selectedConnection?.name} ainda não tem conversas
+                        </p>
+                      </div>
+                    );
+                  }
+
+                  return conversations.map((conv) => (
+                    <Card 
+                      key={conv.partnerId}
+                      className={`cursor-pointer transition-all border ${
+                        activeChat === conv.partnerId 
+                          ? 'border-primary bg-primary/5' 
+                          : 'border-border hover:border-primary/50'
+                      }`}
+                      onClick={() => setActiveChat(conv.partnerId)}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <h5 className="font-medium text-foreground">{conv.partnerName}</h5>
+                            <p className="text-sm text-muted-foreground truncate">
+                              {conv.lastMessage}
+                            </p>
+                          </div>
+                          <div className="text-right ml-4">
+                            <Badge variant="secondary" className="text-xs">
+                              {conv.messageCount}
+                            </Badge>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {new Date(conv.lastTime).toLocaleTimeString('pt-BR', {
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ));
+                })()}
+              </div>
+            </ScrollArea>
+          </div>
+        )}
+
         {/* Chat Area */}
-        <div className="flex-1 flex flex-col">
-          {!selectedConnectionId ? (
-            <div className="flex-1 flex items-center justify-center bg-dark-bg">
-              <div className="text-center">
-                <div className="w-16 h-16 bg-[hsl(180,100%,41%)]/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <i className="fas fa-comments text-[hsl(180,100%,41%)] text-3xl"></i>
+        {activeChat && selectedConnectionId ? (
+          <div className="flex-1 flex flex-col bg-card">
+            {/* Chat Header */}
+            <div className="px-6 py-4 border-b border-border bg-card">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-foreground">
+                    {selectedConnection?.name} → {activeConnection?.name}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Conversa entre duas conexões WhatsApp
+                  </p>
                 </div>
-                <h3 className="text-xl font-semibold text-white mb-2">
-                  Selecione uma conversa
-                </h3>
-                <p className="text-gray-400">
-                  Escolha uma conexão para começar a conversar
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    clearConversationMutation.mutate({
+                      connectionId1: selectedConnectionId,
+                      connectionId2: activeChat
+                    });
+                  }}
+                  className="text-red-400 border-red-500/30 hover:bg-red-500/20"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Messages */}
+            <ScrollArea className="flex-1 px-6 py-4">
+              <div className="space-y-4">
+                {activeChatMessages.length === 0 ? (
+                  <div className="text-center py-8">
+                    <div className="w-16 h-16 mx-auto mb-4 bg-muted rounded-full flex items-center justify-center">
+                      <i className="fas fa-comments text-2xl text-muted-foreground"></i>
+                    </div>
+                    <h3 className="text-lg font-medium text-foreground mb-2">Nenhuma mensagem ainda</h3>
+                    <p className="text-muted-foreground">Envie a primeira mensagem!</p>
+                  </div>
+                ) : (
+                  activeChatMessages.map((message) => {
+                    const isFromSelected = message.fromConnectionId === selectedConnectionId;
+                    const senderConnection = connections.find(c => c.id === message.fromConnectionId);
+                    
+                    return (
+                      <div
+                        key={message.id}
+                        className={`flex items-start space-x-3 ${
+                          isFromSelected ? "flex-row-reverse space-x-reverse" : ""
+                        }`}
+                      >
+                        <div
+                          className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                            message.isFromAgent
+                              ? "bg-pink-500"
+                              : isFromSelected
+                              ? "bg-primary"
+                              : "bg-muted-foreground"
+                          }`}
+                        >
+                          <i
+                            className={`fas ${
+                              message.isFromAgent
+                                ? "fa-robot"
+                                : "fa-whatsapp"
+                            } text-white text-xs`}
+                          ></i>
+                        </div>
+                        <div className="flex-1 max-w-xs">
+                          {!isFromSelected && (
+                            <p className="text-xs text-muted-foreground mb-1">
+                              {senderConnection?.name || 'Desconhecido'}
+                            </p>
+                          )}
+                          <div
+                            className={`rounded-lg px-3 py-2 ${
+                              isFromSelected
+                                ? "bg-primary text-primary-foreground"
+                                : message.isFromAgent
+                                ? "bg-pink-500/20 border border-pink-500/30"
+                                : "bg-muted"
+                            }`}
+                          >
+                            <p className="text-sm">{message.content}</p>
+                          </div>
+                          <div className="flex items-center justify-between mt-1">
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(message.timestamp).toLocaleTimeString('pt-BR', {
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </p>
+                            {message.isFromAgent && (
+                              <Badge variant="secondary" className="text-xs">
+                                <i className="fas fa-robot mr-1"></i>
+                                IA
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+            </ScrollArea>
+
+            {/* Message Input */}
+            <div className="border-t border-border p-4">
+              <div className="flex space-x-2">
+                <Input
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  placeholder="Digite sua mensagem..."
+                  className="flex-1"
+                  disabled={sendMessageMutation.isPending}
+                />
+                <Button
+                  onClick={handleSendMessage}
+                  disabled={!newMessage.trim() || sendMessageMutation.isPending}
+                  className="bg-primary hover:bg-primary/80"
+                >
+                  {sendMessageMutation.isPending ? (
+                    <i className="fas fa-spinner fa-spin"></i>
+                  ) : (
+                    <i className="fas fa-paper-plane"></i>
+                  )}
+                </Button>
+              </div>
+              <div className="flex justify-between items-center mt-2">
+                <p className="text-xs text-muted-foreground">
+                  Pressione Enter para enviar via WhatsApp
+                </p>
+                <p className="text-xs text-primary">
+                  De: {selectedConnection?.name} → Para: {activeConnection?.name}
                 </p>
               </div>
             </div>
-          ) : (
-            <>
-              {/* Chat Header */}
-              <div className="bg-dark-secondary border-b border-gray-800 px-6 py-4">
-                <div className="flex items-center space-x-4">
-                  <div className="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center">
-                    <i className="fab fa-whatsapp text-green-400"></i>
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-white">
-                      {selectedConnection?.name}
-                    </h3>
-                    <div className="flex items-center space-x-2 text-sm">
-                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse-glow"></div>
-                      <span className="text-green-400">Online</span>
-                    </div>
-                  </div>
-                </div>
+          </div>
+        ) : selectedConnectionId ? (
+          <div className="flex-1 flex items-center justify-center bg-card">
+            <div className="text-center">
+              <div className="w-16 h-16 mx-auto mb-4 bg-muted rounded-full flex items-center justify-center">
+                <i className="fas fa-mouse-pointer text-2xl text-muted-foreground"></i>
               </div>
-
-              {/* Messages */}
-              <ScrollArea className="flex-1 p-6">
-                <div className="space-y-4">
-                  {conversationMessages.length === 0 ? (
-                    <div className="text-center py-8 text-gray-400">
-                      <i className="fas fa-message text-4xl mb-2 opacity-50"></i>
-                      <p>Nenhuma mensagem ainda</p>
-                      <p className="text-sm">Envie a primeira mensagem!</p>
-                    </div>
-                  ) : (
-                    conversationMessages.map((message) => {
-                      const isFromSelected = message.fromConnectionId === selectedConnectionId;
-                      const senderConnection = connections.find(c => c.id === message.fromConnectionId);
-                      const receiverConnection = connections.find(c => c.id === message.toConnectionId);
-                      
-                      return (
-                        <div
-                          key={message.id}
-                          className={`chat-bubble flex items-start space-x-3 ${
-                            isFromSelected ? "flex-row-reverse" : ""
-                          }`}
-                        >
-                          <div
-                            className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                              message.isFromAgent
-                                ? "bg-[hsl(328,100%,54%)]"
-                                : isFromSelected
-                                ? "bg-[hsl(180,100%,41%)]"
-                                : "bg-gray-600"
-                            }`}
-                          >
-                            <i
-                              className={`fas ${
-                                message.isFromAgent
-                                  ? "fa-robot"
-                                  : "fa-whatsapp"
-                              } text-white text-xs`}
-                            ></i>
-                          </div>
-                          <div className="flex-1">
-                            {!isFromSelected && (
-                              <p className="text-xs text-gray-400 mb-1">
-                                {senderConnection?.name || 'Desconhecido'}
-                              </p>
-                            )}
-                            <div
-                              className={`rounded-lg px-3 py-2 ${
-                                isFromSelected
-                                  ? "bg-[hsl(180,100%,41%)]/20 border border-[hsl(180,100%,41%)]/30"
-                                  : message.isFromAgent
-                                  ? "bg-[hsl(328,100%,54%)]/20 border border-[hsl(328,100%,54%)]/30"
-                                  : "bg-dark-tertiary"
-                              }`}
-                            >
-                              <p className="text-sm text-white">{message.content}</p>
-                            </div>
-                            <div className="flex items-center justify-between mt-1">
-                              <p className="text-xs text-gray-400">
-                                {new Date(message.timestamp).toLocaleTimeString('pt-BR', {
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                })}
-                              </p>
-                              {message.isFromAgent && (
-                                <Badge variant="secondary" className="text-xs">
-                                  <i className="fas fa-robot mr-1"></i>
-                                  IA
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                  <div ref={messagesEndRef} />
-                </div>
-              </ScrollArea>
-
-              {/* Message Input */}
-              <div className="bg-dark-secondary border-t border-gray-800 p-4">
-                <div className="flex space-x-2">
-                  <Input
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    placeholder="Digite sua mensagem..."
-                    className="flex-1 bg-white border-gray-600 text-black placeholder:text-gray-500"
-                    disabled={sendMessageMutation.isPending}
-                  />
-                  <Button
-                    onClick={handleSendMessage}
-                    disabled={!newMessage.trim() || sendMessageMutation.isPending}
-                    className="bg-[hsl(180,100%,41%)] hover:bg-[hsl(180,100%,41%)]/80"
-                  >
-                    {sendMessageMutation.isPending ? (
-                      <i className="fas fa-spinner fa-spin"></i>
-                    ) : (
-                      <i className="fas fa-paper-plane"></i>
-                    )}
-                  </Button>
-                </div>
-                <div className="flex justify-between items-center mt-2">
-                  <p className="text-xs text-gray-400">
-                    Pressione Enter para enviar via WhatsApp
-                  </p>
-                  {selectedConnection && (
-                    <p className="text-xs text-[hsl(180,100%,41%)]">
-                      Enviando de: {selectedConnection.name}
-                    </p>
-                  )}
-                </div>
+              <h3 className="text-lg font-medium text-foreground mb-2">Selecione uma conversa</h3>
+              <p className="text-muted-foreground">
+                Escolha com qual conexão {selectedConnection?.name} deve conversar
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="flex-1 flex items-center justify-center bg-card">
+            <div className="text-center">
+              <div className="w-16 h-16 mx-auto mb-4 bg-muted rounded-full flex items-center justify-center">
+                <i className="fas fa-hand-pointer text-2xl text-muted-foreground"></i>
               </div>
-            </>
-          )}
-        </div>
+              <h3 className="text-lg font-medium text-foreground mb-2">Selecione uma conexão</h3>
+              <p className="text-muted-foreground">
+                Primeiro escolha qual conexão WhatsApp vai enviar as mensagens
+              </p>
+            </div>
+          </div>
+        )}
       </main>
     </>
   );
