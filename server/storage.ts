@@ -47,6 +47,7 @@ export interface IStorage {
   // Active Conversations
   getActiveConversations(): Promise<ActiveConversation[]>;
   preserveActiveConversationsOnRestart(): Promise<void>;
+  ensureConversationsPermanentlyActive(): Promise<void>;
   getActiveConversation(connection1Id: string, connection2Id: string): Promise<ActiveConversation | undefined>;
   createActiveConversation(conversation: InsertActiveConversation): Promise<ActiveConversation>;
   updateActiveConversation(id: string, updates: Partial<ActiveConversation>): Promise<ActiveConversation>;
@@ -599,14 +600,41 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(activeConversations.lastMessageAt));
   }
 
-  // 🔒 NOVA FUNÇÃO: Preservar conversas ativas após restart
+  // 🔒 PRESERVAÇÃO PERMANENTE: Conversas NUNCA são desativadas
   async preserveActiveConversationsOnRestart(): Promise<void> {
-    const conversations = await this.getActiveConversations();
-    if (conversations.length > 0) {
-      console.log(`🔄 PRESERVANDO ${conversations.length} conversa(s) ativa(s) após restart`);
+    // Buscar TODAS as conversas que foram iniciadas pelo usuário (não apenas as ativas)
+    const allConversations = await db.select().from(activeConversations)
+      .where(eq(activeConversations.startedBy, 'user'));
+    
+    if (allConversations.length > 0) {
+      console.log(`🔄 PRESERVANDO ${allConversations.length} conversa(s) PERMANENTEMENTE após restart`);
       
-      // Garantir que todas as conversas ativas permaneçam ativas
-      for (const conversation of conversations) {
+      // FORÇAR REATIVAÇÃO: Todas as conversas iniciadas pelo usuário DEVEM estar ativas
+      for (const conversation of allConversations) {
+        await db.update(activeConversations)
+          .set({ 
+            isActive: true,  // 🔒 SEMPRE ATIVO
+            updatedAt: new Date() 
+          })
+          .where(eq(activeConversations.id, conversation.id));
+      }
+      
+      console.log(`🔒 CONVERSAS PERMANENTES GARANTIDAS: ${allConversations.length} conversas NUNCA serão desativadas`);
+    }
+  }
+
+  // 🔒 NOVA FUNÇÃO: Garantir que conversas iniciadas nunca sejam desativadas
+  async ensureConversationsPermanentlyActive(): Promise<void> {
+    const inactiveConversations = await db.select().from(activeConversations)
+      .where(and(
+        eq(activeConversations.startedBy, 'user'),
+        eq(activeConversations.isActive, false)
+      ));
+    
+    if (inactiveConversations.length > 0) {
+      console.log(`🔒 REATIVANDO ${inactiveConversations.length} conversa(s) que foram desativadas indevidamente`);
+      
+      for (const conversation of inactiveConversations) {
         await db.update(activeConversations)
           .set({ 
             isActive: true,
@@ -615,7 +643,7 @@ export class DatabaseStorage implements IStorage {
           .where(eq(activeConversations.id, conversation.id));
       }
       
-      console.log(`🔒 CONVERSAS ATIVAS PRESERVADAS: ${conversations.length} conversas mantidas`);
+      console.log(`✅ CONVERSAS REATIVADAS: ${inactiveConversations.length} conversas voltaram ao estado permanente`);
     }
   }
 

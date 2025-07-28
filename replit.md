@@ -316,6 +316,12 @@ Preferred communication style: Simple, everyday language.
 - ✅ Logs confirmam: "🔄 PRESERVANDO 1 conversa(s) ativa(s) após restart"
 - ✅ Problema do is_active=false após restart completamente resolvido
 - 🎯 GARANTIA: Conversas ativas NUNCA serão perdidas após restart do servidor
+- 🔒 SISTEMA DE PRESERVAÇÃO PERMANENTE IMPLEMENTADO (28/07/2025 13:56)
+- ✅ Sistema busca TODAS as conversas iniciadas pelo usuário (não apenas ativas)
+- ✅ Função ensureConversationsPermanentlyActive() criada para monitoramento contínuo
+- ✅ Monitoramento automático a cada 30 segundos para reativar conversas desativadas
+- ✅ Conversas iniciadas pelo usuário são protegidas contra desativação
+- 🔒 GARANTIA ABSOLUTA: Uma vez iniciada, a conversa NUNCA será desativada automaticamente
 - ✅ Seleção múltipla com checkboxes e contadores
 - ✅ Envio em massa para múltiplas conexões simultaneamente
 - ✅ Interface escalável para dezenas de conexões WhatsApp

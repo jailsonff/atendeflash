@@ -75,8 +75,9 @@ app.use((req, res, next) => {
       try {
         log('🔒 RESTAURAÇÃO AUTOMÁTICA DESABILITADA - Prevenção de conflitos ativada');
         
-        // ✅ PRESERVAR CONVERSAS ATIVAS: Não resetar conversas que já estavam ativas
+        // ✅ PRESERVAÇÃO PERMANENTE: Conversas iniciadas NUNCA são desativadas
         await storage.preserveActiveConversationsOnRestart();
+        await storage.ensureConversationsPermanentlyActive();
         
         const connections = await storage.getWhatsappConnections();
         
@@ -96,5 +97,18 @@ app.use((req, res, next) => {
         console.error('❌ ERRO CRÍTICO na restauração permanente:', error);
       }
     }, 3000); // Inicia em 3 segundos
+
+    // 🔒 SISTEMA DE MONITORAMENTO PERMANENTE DE CONVERSAS (executa a cada 30 segundos)
+    setTimeout(() => {
+      log('🔒 SISTEMA DE MONITORAMENTO PERMANENTE DE CONVERSAS INICIADO');
+      
+      setInterval(async () => {
+        try {
+          await storage.ensureConversationsPermanentlyActive();
+        } catch (error) {
+          console.error('❌ ERRO no monitoramento de conversas:', error);
+        }
+      }, 30 * 1000); // A cada 30 segundos
+    }, 5000); // Inicia em 5 segundos
   });
 })();
