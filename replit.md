@@ -304,6 +304,12 @@ Preferred communication style: Simple, everyday language.
 - ✅ Sistema de memória de conversas funcionando para contexto dos agentes IA
 - ✅ Agentes agora conseguem lembrar do histórico de conversas para respostas mais inteligentes
 - ✅ Sistema de conversas contínuas entre agentes restaurado e operacional
+- 🎯 PROBLEMA AGENTES NÃO RESPONDEM RESOLVIDO (28/07/2025 13:40)
+- ✅ Conversa ativa no banco não estava marcada como is_active=true após restart
+- ✅ Sistema corrigido: ambas agentes (VISITANTE e LOJA CALCADOS) respondendo perfeitamente
+- ✅ TIMING CONFIRMADO: VISITANTE 22s, LOJA CALCADOS 13s funcionando com precisão
+- ✅ Sistema de memória carregando 10 mensagens anteriores para contexto
+- ✅ Conversas contínuas automáticas 100% operacionais entre WhatsApp real
 - ✅ Seleção múltipla com checkboxes e contadores
 - ✅ Envio em massa para múltiplas conexões simultaneamente
 - ✅ Interface escalável para dezenas de conexões WhatsApp
