@@ -258,17 +258,27 @@ export default function Conversas() {
       console.log("Aviso: Não foi possível ativar conversa automática:", error);
     }
 
-    sendMessageMutation.mutate({
-      content: newMessage,
-      fromConnectionId: selectedConnectionId,
-      toConnectionId: activeChat,
-    });
+    if (viewMode === 'individual') {
+      // Send message to single target
+      sendMessageMutation.mutate({
+        content: newMessage,
+        fromConnectionId: selectedConnectionId,
+        toConnectionId: activeChat,
+      });
+    } else {
+      // For group mode, use the dedicated function
+      sendToMultipleTargets();
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSendMessage();
+      if (viewMode === 'individual') {
+        handleSendMessage();
+      } else {
+        sendToMultipleTargets();
+      }
     }
   };
 
@@ -303,16 +313,35 @@ export default function Conversas() {
     );
   };
 
-  const sendToMultipleTargets = () => {
+  const sendToMultipleTargets = async () => {
     if (!newMessage.trim() || !selectedConnectionId || selectedTargetConnections.length === 0) return;
     
-    selectedTargetConnections.forEach(targetId => {
-      sendMessageMutation.mutate({
-        content: newMessage,
-        fromConnectionId: selectedConnectionId,
-        toConnectionId: targetId,
-      });
+    // 🎯 ATIVAR CONVERSA PARA CADA ALVO QUANDO USUÁRIO ENVIA MENSAGEM EM MASSA
+    for (const targetId of selectedTargetConnections) {
+      try {
+        await apiRequest("POST", `/api/active-conversations/toggle`, {
+          connection1Id: selectedConnectionId,
+          connection2Id: targetId,
+          startedBy: "user"
+        });
+        
+        // Send message to each target
+        sendMessageMutation.mutate({
+          content: newMessage,
+          fromConnectionId: selectedConnectionId,
+          toConnectionId: targetId,
+        });
+      } catch (error) {
+        console.log("Aviso: Não foi possível ativar conversa automática:", error);
+      }
+    }
+    
+    toast({
+      title: "Mensagem enviada",
+      description: `Mensagem enviada para ${selectedTargetConnections.length} conexões e conversas automáticas ativadas`,
     });
+    
+    setNewMessage("");
   };
 
   return (
@@ -835,12 +864,7 @@ export default function Conversas() {
                 <Input
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      sendToMultipleTargets();
-                    }
-                  }}
+                  onKeyPress={handleKeyPress}
                   placeholder={`Mensagem para ${selectedTargetConnections.length} conexões...`}
                   className="flex-1"
                   disabled={sendMessageMutation.isPending}
