@@ -44,22 +44,33 @@ export class OpenAIService {
       const openai = await this.getOpenAIClient();
       
       const systemPrompt = `Você é um agente de atendimento virtual com a seguinte persona: ${persona}. 
-      Responda de forma natural, útil e sempre mantendo o tom da persona definida. 
-      Mantenha as respostas concisas e diretas para WhatsApp.
       
-      IMPORTANTE: Sua resposta deve ter no máximo ${maxTokens} caracteres. Seja direto e objetivo.`;
+      INSTRUÇÕES IMPORTANTES:
+      - Mantenha CONTINUIDADE com a conversa anterior (use o histórico fornecido)
+      - NÃO repita frases ou informações já ditas
+      - Seja NATURAL e HUMANO na conversa
+      - Responda de forma contextual baseado no que já foi conversado
+      - Varie seu vocabulário e estilo de resposta
+      - Sua resposta deve ter no máximo ${maxTokens} caracteres
+      - Seja direto e objetivo para WhatsApp
+      
+      PERSONA: ${persona}`;
 
       const messages: any[] = [
         { role: "system", content: systemPrompt }
       ];
 
-      // Add conversation history
-      conversationHistory.slice(-10).forEach((msg, index) => {
-        messages.push({
-          role: index % 2 === 0 ? "user" : "assistant",
-          content: msg
+      // 🧠 MEMÓRIA INTELIGENTE: Adicionar contexto das conversas anteriores
+      if (conversationHistory && conversationHistory.length > 0) {
+        const recentHistory = conversationHistory.slice(-10); // Últimas 10 mensagens
+        recentHistory.forEach((msg: any) => {
+          const role = msg.isFromAgent ? "assistant" : "user";
+          messages.push({
+            role,
+            content: msg.content
+          });
         });
-      });
+      }
 
       // Add current user message
       messages.push({ role: "user", content: userMessage });

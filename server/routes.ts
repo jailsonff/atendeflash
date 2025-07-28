@@ -505,16 +505,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const actualDelay = Date.now() - startTime;
             console.log(`✅ TIMING CONFIRMADO: Agente "${agent.name}" respondeu após ${actualDelay}ms (target: ${responseTime}ms, diff: ${actualDelay - responseTime}ms)`);
             try {
-              const conversationHistory = await storage.getConversation(
-                messageData.fromConnectionId || '',
-                messageData.toConnectionId
-              );
+              // 🧠 BUSCAR MEMÓRIA DA CONVERSA para contexto do agente
+              const memorySize = agent.memorySize || 10;
+              const useMemory = agent.useMemory !== false; // Default true
+              let conversationHistory: any[] = [];
+              
+              if (useMemory && messageData.fromConnectionId && messageData.toConnectionId) {
+                conversationHistory = await storage.getConversationMemory(
+                  messageData.fromConnectionId, 
+                  messageData.toConnectionId, 
+                  memorySize
+                );
+                console.log(`🧠 MEMÓRIA WebSocket: Carregadas ${conversationHistory.length} mensagens anteriores para contexto do agente ${agent.name}`);
+              }
 
               const response = await openaiService.generateAgentResponse(
                 agent.persona,
                 messageData.content,
                 (agent.temperature || 70) / 100,
-                conversationHistory.slice(-10).map(m => m.content),
+                conversationHistory, // Pass full message objects with isFromAgent info
                 agent.maxTokens || 500
               );
 
@@ -901,16 +910,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
               console.log(`✅ TIMING CONFIRMADO API: Agente "${agent.name}" respondeu após ${actualDelay}ms (target: ${responseTime}ms, diff: ${actualDelay - responseTime}ms)`);
               
               try {
-                const conversationHistory = await storage.getConversation(
-                  messageData.fromConnectionId || '',
-                  messageData.toConnectionId || ''
-                );
+                // 🧠 BUSCAR MEMÓRIA DA CONVERSA para contexto do agente
+                const memorySize = agent.memorySize || 10;
+                const useMemory = agent.useMemory !== false; // Default true
+                let conversationHistory: any[] = [];
+                
+                if (useMemory && messageData.fromConnectionId && messageData.toConnectionId) {
+                  conversationHistory = await storage.getConversationMemory(
+                    messageData.fromConnectionId, 
+                    messageData.toConnectionId, 
+                    memorySize
+                  );
+                  console.log(`🧠 MEMÓRIA API: Carregadas ${conversationHistory.length} mensagens anteriores para contexto do agente ${agent.name}`);
+                }
 
                 const response = await openaiService.generateAgentResponse(
                   agent.persona,
                   messageData.content,
                   (agent.temperature || 70) / 100,
-                  conversationHistory.slice(-10).map(m => m.content),
+                  conversationHistory, // Pass full message objects with isFromAgent info
                   agent.maxTokens || 500
                 );
 

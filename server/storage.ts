@@ -132,6 +132,13 @@ export class MemStorage implements IStorage {
       .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
   }
 
+  // 🧠 NOVA FUNÇÃO: Buscar histórico de conversa para memória do agente
+  async getConversationMemory(connection1Id: string, connection2Id: string, memorySize: number = 10): Promise<Message[]> {
+    const conversation = await this.getConversation(connection1Id, connection2Id);
+    // Retorna as últimas N mensagens para contexto
+    return conversation.slice(-memorySize);
+  }
+
   async createMessage(message: InsertMessage): Promise<Message> {
     const id = randomUUID();
     const newMessage: Message = {

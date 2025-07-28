@@ -22,6 +22,8 @@ interface AiAgent {
   temperature?: number;
   responseTime?: number; // Response time in milliseconds
   maxTokens?: number; // Maximum tokens for responses
+  memorySize?: number; // Number of messages to remember
+  useMemory?: boolean; // Whether to use conversation memory
   connectionId?: string;
   isActive?: boolean;
   messageCount?: number;
@@ -46,6 +48,8 @@ export default function Agentes() {
     temperature: 70,
     responseTime: 2000, // Default 2 seconds
     maxTokens: 500, // Default 500 tokens
+    memorySize: 10, // Default 10 messages
+    useMemory: true, // Default true
     connectionId: "",
     isActive: true,
   });
@@ -144,6 +148,8 @@ export default function Agentes() {
       temperature: 70,
       responseTime: 2000, // Default 2 seconds
       maxTokens: 500, // Default 500 tokens
+      memorySize: 10, // Default 10 messages
+      useMemory: true, // Default true
       connectionId: "",
       isActive: true,
     });
@@ -158,6 +164,8 @@ export default function Agentes() {
       temperature: agent.temperature || 70,
       responseTime: agent.responseTime || 2000,
       maxTokens: agent.maxTokens || 500,
+      memorySize: agent.memorySize || 10,
+      useMemory: agent.useMemory !== false,
       connectionId: agent.connectionId || "",
       isActive: agent.isActive || true,
     });
@@ -348,6 +356,37 @@ export default function Agentes() {
                   </div>
                 </div>
 
+                <div>
+                  <Label htmlFor="memorySize" className="text-gray-300">
+                    Tamanho da Memória ({agentForm.memorySize} mensagens)
+                  </Label>
+                  <div className="mt-2">
+                    <Slider
+                      value={[agentForm.memorySize]}
+                      onValueChange={(value) => setAgentForm(prev => ({ ...prev, memorySize: value[0] }))}
+                      max={50} // Maximum 50 messages
+                      min={1} // Minimum 1 message
+                      step={1} // 1 message steps
+                      className="w-full"
+                    />
+                    <div className="flex justify-between text-xs text-gray-400 mt-1">
+                      <span>1 mensagem</span>
+                      <span>50 mensagens</span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-2">
+                    Quantas mensagens anteriores o agente lembra para manter contexto das conversas
+                  </p>
+                </div>
+
+                <div className="flex items-center space-x-3">
+                  <Switch
+                    checked={agentForm.useMemory}
+                    onCheckedChange={(checked) => setAgentForm(prev => ({ ...prev, useMemory: checked }))}
+                  />
+                  <Label className="text-gray-300">Usar memória de contexto</Label>
+                </div>
+
                 <div className="flex items-center space-x-3">
                   <Switch
                     checked={agentForm.isActive}
@@ -437,7 +476,7 @@ export default function Agentes() {
                         </p>
                       </div>
                       
-                      <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div className="grid grid-cols-3 gap-3 text-sm">
                         <div>
                           <span className="text-gray-400">Temperatura:</span>
                           <span className="text-[hsl(180,100%,41%)] font-medium ml-1">
@@ -463,6 +502,18 @@ export default function Agentes() {
                           <span className="text-gray-400">Por resposta:</span>
                           <span className="text-yellow-400 font-medium ml-1">
                             {agent.maxTokens || 500} chars
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-gray-400">Memória:</span>
+                          <span className="text-blue-400 font-medium ml-1">
+                            {agent.memorySize || 10} msgs
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-gray-400">Usa Contexto:</span>
+                          <span className={`font-medium ml-1 ${agent.useMemory !== false ? 'text-green-400' : 'text-red-400'}`}>
+                            {agent.useMemory !== false ? 'Sim' : 'Não'}
                           </span>
                         </div>
                       </div>

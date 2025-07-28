@@ -38,6 +38,8 @@ export const aiAgents = pgTable("ai_agents", {
   isActive: boolean("is_active").default(true),
   isPaused: boolean("is_paused").default(false), // New field to pause/unpause agents
   messageCount: integer("message_count").default(0),
+  memorySize: integer("memory_size").default(10), // quantas mensagens recentes lembrar
+  useMemory: boolean("use_memory").default(true), // se deve usar memória das conversas
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
