@@ -46,8 +46,10 @@ interface Agent {
 
 export default function Conversas() {
   const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
+  const [selectedTargetConnections, setSelectedTargetConnections] = useState<string[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [globalAgentsPaused, setGlobalAgentsPaused] = useState(false);
+  const [activeChat, setActiveChat] = useState<string | null>(null); // Para chat individual ativo
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   const { toast } = useToast();
@@ -75,16 +77,62 @@ export default function Conversas() {
     }
   }, [agents]);
 
-  // Get messages for selected conversation - filter inter-connection messages
-  const conversationMessages = allMessages.filter(message => {
-    if (!selectedConnectionId) return false;
-    // Show messages where the selected connection is either sender or receiver
-    return (message.fromConnectionId === selectedConnectionId || 
-            message.toConnectionId === selectedConnectionId) &&
+  // Get messages for active individual chat
+  const activeChatMessages = allMessages.filter(message => {
+    if (!activeChat || !selectedConnectionId) return false;
+    
+    // Show messages between the selected connection and the active chat target
+    return ((message.fromConnectionId === selectedConnectionId && message.toConnectionId === activeChat) ||
+            (message.fromConnectionId === activeChat && message.toConnectionId === selectedConnectionId)) &&
            // Only show inter-connection messages (not system messages)
            message.fromConnectionId !== 'system' && 
            message.toConnectionId !== 'system';
   }).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+  // Get all conversations for selected connection grouped by target
+  const getConversationsForConnection = (connectionId: string) => {
+    const connectionMessages = allMessages.filter(message => {
+      return (message.fromConnectionId === connectionId || message.toConnectionId === connectionId) &&
+             message.fromConnectionId !== 'system' && 
+             message.toConnectionId !== 'system';
+    });
+
+    // Group by conversation partner
+    const conversationMap = new Map<string, { 
+      partnerId: string, 
+      partnerName: string, 
+      lastMessage: string, 
+      lastTime: string,
+      messageCount: number 
+    }>();
+
+    connectionMessages.forEach(msg => {
+      const partnerId = msg.fromConnectionId === connectionId ? msg.toConnectionId : msg.fromConnectionId;
+      if (!partnerId) return;
+
+      const partner = connections.find(c => c.id === partnerId);
+      if (!partner) return;
+
+      const existing = conversationMap.get(partnerId);
+      const msgTime = new Date(msg.timestamp).getTime();
+      
+      if (!existing || new Date(existing.lastTime).getTime() < msgTime) {
+        conversationMap.set(partnerId, {
+          partnerId,
+          partnerName: partner.name,
+          lastMessage: msg.content.slice(0, 50) + (msg.content.length > 50 ? '...' : ''),
+          lastTime: msg.timestamp,
+          messageCount: (existing?.messageCount || 0) + 1
+        });
+      } else if (existing) {
+        existing.messageCount++;
+      }
+    });
+
+    return Array.from(conversationMap.values()).sort((a, b) => 
+      new Date(b.lastTime).getTime() - new Date(a.lastTime).getTime()
+    );
+  };
 
   const sendMessageMutation = useMutation({
     mutationFn: async (data: { content: string; toConnectionId: string; fromConnectionId: string }) => {
@@ -114,6 +162,16 @@ export default function Conversas() {
       });
     },
   });
+
+  const handleConnectionSelect = (connectionId: string) => {
+    setSelectedConnectionId(connectionId);
+    setActiveChat(null); // Reset active chat when switching connection
+    setSelectedTargetConnections([]);
+  };
+
+  const handleChatSelect = (targetConnectionId: string) => {
+    setActiveChat(targetConnectionId);
+  };
 
   const clearConversationMutation = useMutation({
     mutationFn: async ({ connectionId1, connectionId2 }: { connectionId1: string; connectionId2: string }) => {
@@ -184,7 +242,7 @@ export default function Conversas() {
   // Scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [conversationMessages]);
+  }, [activeChatMessages]);
 
   // Create conversations list from connections and messages
   const conversations: Conversation[] = connections
@@ -206,30 +264,7 @@ export default function Conversas() {
       };
     });
 
-  const handleSendMessage = () => {
-    if (!newMessage.trim() || !selectedConnectionId) return;
-    
-    // Find the "other" connection to send TO
-    const otherConnections = connections.filter(conn => 
-      conn.id !== selectedConnectionId && conn.status === 'connected'
-    );
-    
-    if (otherConnections.length === 0) {
-      toast({
-        title: "Erro",
-        description: "Nenhuma outra conexão ativa encontrada para enviar a mensagem.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    // Send from the selected connection TO the other connection
-    sendMessageMutation.mutate({
-      content: newMessage.trim(),
-      toConnectionId: otherConnections[0].id, // Send to the first other connection
-      fromConnectionId: selectedConnectionId, // Send from the selected connection
-    });
-  };
+
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
