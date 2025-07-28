@@ -1006,33 +1006,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const config = await storage.getChatgptConfig();
       
-      // Check if OpenAI API key exists in environment
-      const hasApiKey = !!process.env.OPENAI_API_KEY;
-      console.log('🔑 OpenAI API Key available:', hasApiKey);
+      console.log('🔑 OpenAI API Key available:', !!process.env.OPENAI_API_KEY);
       console.log('📋 Existing config:', !!config);
       
-      if (!config && hasApiKey) {
-        // Create default config if we have API key but no config
-        const defaultConfig = {
-          apiKey: process.env.OPENAI_API_KEY!,
-          responseTime: 2000,
-          autoResponse: true,
-          keywordTriggers: []
-        };
-        
-        const newConfig = await storage.createOrUpdateChatgptConfig(defaultConfig);
-        const safeConfig = { ...newConfig, apiKey: '***masked***' };
-        return res.json({ ...safeConfig, configured: true });
-      }
-      
-      if (!config || !hasApiKey) {
+      // If no config exists, return unconfigured state
+      if (!config) {
         return res.json({ configured: false });
       }
       
-      // Don't expose the API key
+      // Return config with masked API key
       const safeConfig = { ...config, apiKey: '***masked***' };
       res.json({ ...safeConfig, configured: true });
     } catch (error) {
+      console.error('Error fetching ChatGPT config:', error);
       res.status(500).json({ message: "Erro ao buscar configuração" });
     }
   });

@@ -33,6 +33,7 @@ export interface IStorage {
   getAiAgents(): Promise<AiAgent[]>;
   getAiAgent(id: string): Promise<AiAgent | undefined>;
   getAiAgentByConnection(connectionId: string): Promise<AiAgent | undefined>;
+  getAllActiveAgents(): Promise<AiAgent[]>;
   createAiAgent(agent: InsertAiAgent): Promise<AiAgent>;
   updateAiAgent(id: string, updates: Partial<AiAgent>): Promise<AiAgent>;
   deleteAiAgent(id: string): Promise<void>;
@@ -456,6 +457,12 @@ export class DatabaseStorage implements IStorage {
 
   async deleteAiAgent(id: string): Promise<void> {
     await db.delete(aiAgents).where(eq(aiAgents.id, id));
+  }
+
+  async getAllActiveAgents(): Promise<AiAgent[]> {
+    return await db.select().from(aiAgents)
+      .where(and(eq(aiAgents.isActive, true), eq(aiAgents.isPaused, false)))
+      .orderBy(desc(aiAgents.createdAt));
   }
 
   // ChatGPT Config
