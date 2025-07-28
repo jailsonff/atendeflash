@@ -446,6 +446,13 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(messages.timestamp));
   }
 
+  // 🧠 FUNÇÃO DE MEMÓRIA: Buscar histórico de conversa para contexto do agente
+  async getConversationMemory(connection1Id: string, connection2Id: string, memorySize: number = 10): Promise<Message[]> {
+    const conversation = await this.getConversation(connection1Id, connection2Id);
+    // Retorna as últimas N mensagens para contexto
+    return conversation.slice(-memorySize);
+  }
+
   async createMessage(message: InsertMessage): Promise<Message> {
     const [newMessage] = await db
       .insert(messages)
